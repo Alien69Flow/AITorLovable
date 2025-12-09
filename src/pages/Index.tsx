@@ -1,13 +1,15 @@
-// Update this page (the content is just a fallback if you fail to update the page)
+import { ChatContainer } from "@/components/chat/ChatContainer";
+import { Helmet } from "react-helmet-async";
 
 const Index = () => {
   return (
-    <div className="flex min-h-screen items-center justify-center bg-background">
-      <div className="text-center">
-        <h1 className="mb-4 text-4xl font-bold">Welcome to Your Blank App</h1>
-        <p className="text-xl text-muted-foreground">Start building your amazing project here!</p>
-      </div>
-    </div>
+    <>
+      <Helmet>
+        <title>AI Tor - ΔlieπFlΦw DAO Synapse Collective</title>
+        <meta name="description" content="Interfaz de chat multi-IA especializada en Blockchain, Web3, Web4, Computación Cuántica, Filosofía y más. Powered by Gemini y GPT." />
+      </Helmet>
+      <ChatContainer />
+    </>
   );
 };
 
