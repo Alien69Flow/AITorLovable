@@ -6,6 +6,7 @@ import { ChatMessage } from "./ChatMessage";
 import { ChatInput } from "./ChatInput";
 import { EmptyState } from "./EmptyState";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { SpaceBackground } from "@/components/SpaceBackground";
 
 export function ChatContainer() {
   const [selectedModel, setSelectedModel] = useState("google/gemini-2.5-flash");
@@ -26,7 +27,9 @@ export function ChatContainer() {
   }, [messages]);
 
   return (
-    <div className="flex h-screen flex-col bg-background">
+    <>
+      <SpaceBackground />
+      <div className="flex h-screen flex-col bg-transparent relative z-10">
       <ChatHeader
         selectedModel={selectedModel}
         onModelChange={setSelectedModel}
@@ -63,6 +66,7 @@ export function ChatContainer() {
           supportsVision={supportsVision}
         />
       </div>
-    </div>
+      </div>
+    </>
   );
 }
