@@ -24,30 +24,31 @@ export function ChatHeader({ selectedModel, onModelChange, onClear, hasMessages 
   return (
     <header className="flex items-center justify-between border-b border-border/50 bg-background/80 backdrop-blur-sm px-4 py-3">
       <div className="flex items-center gap-3">
-        {/* UFO Logo */}
+        {/* AlienFlow Logo */}
         <div className="relative flex items-center justify-center w-10 h-10">
           <svg viewBox="0 0 100 100" className="w-full h-full">
-            {/* UFO body */}
-            <ellipse cx="50" cy="55" rx="35" ry="12" fill="hsl(var(--secondary))" opacity="0.9"/>
-            <ellipse cx="50" cy="52" rx="25" ry="8" fill="hsl(var(--secondary))" />
-            {/* UFO dome */}
-            <ellipse cx="50" cy="45" rx="15" ry="12" fill="hsl(var(--primary))" opacity="0.8"/>
-            <ellipse cx="50" cy="42" rx="10" ry="8" fill="hsl(var(--primary))" />
-            {/* Light beam */}
-            <polygon points="42,60 58,60 65,85 35,85" fill="hsl(var(--primary))" opacity="0.4"/>
-            {/* Lights on UFO */}
-            <circle cx="30" cy="55" r="3" fill="hsl(var(--primary))" className="animate-pulse"/>
-            <circle cx="50" cy="58" r="3" fill="hsl(var(--primary))" className="animate-pulse" style={{animationDelay: '0.3s'}}/>
-            <circle cx="70" cy="55" r="3" fill="hsl(var(--primary))" className="animate-pulse" style={{animationDelay: '0.6s'}}/>
+            {/* Alien head outline */}
+            <ellipse cx="50" cy="45" rx="28" ry="35" fill="none" stroke="hsl(var(--secondary))" strokeWidth="2"/>
+            {/* Eyes */}
+            <ellipse cx="38" cy="40" rx="8" ry="12" fill="hsl(var(--secondary))" opacity="0.8"/>
+            <ellipse cx="62" cy="40" rx="8" ry="12" fill="hsl(var(--secondary))" opacity="0.8"/>
+            {/* Eye glow */}
+            <ellipse cx="38" cy="38" rx="4" ry="6" fill="hsl(var(--primary))" className="animate-pulse"/>
+            <ellipse cx="62" cy="38" rx="4" ry="6" fill="hsl(var(--primary))" className="animate-pulse" style={{animationDelay: '0.5s'}}/>
+            {/* Delta symbol on forehead */}
+            <polygon points="50,20 42,35 58,35" fill="none" stroke="hsl(var(--primary))" strokeWidth="2"/>
+            {/* Antenna */}
+            <line x1="50" y1="10" x2="50" y2="18" stroke="hsl(var(--primary))" strokeWidth="2"/>
+            <circle cx="50" cy="8" r="3" fill="hsl(var(--primary))" className="animate-pulse"/>
           </svg>
         </div>
         
         <div className="flex flex-col">
           <h1 className="text-lg font-heading font-bold tracking-tight">
-            <span className="text-primary">Δlieπ</span>
-            <span className="text-secondary">FlΦw</span>
-            <span className="text-primary"> $pac€</span>
-            <span className="text-muted-foreground"> DAO</span>
+            <span className="text-secondary">Δlieπ</span>
+            <span className="text-primary">FlΦw</span>
+            <span className="text-secondary"> $pac€</span>
+            <span className="text-primary"> DAO</span>
           </h1>
           <span className="text-[10px] tracking-widest text-muted-foreground font-body">
             AI Tor • ΓΩΣΖ Synapse
