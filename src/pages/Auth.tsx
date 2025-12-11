@@ -9,6 +9,7 @@ import { toast } from "sonner";
 import { Helmet } from "react-helmet-async";
 import { z } from "zod";
 import { Separator } from "@/components/ui/separator";
+import { SpaceBackground } from "@/components/SpaceBackground";
 
 const authSchema = z.object({
   email: z.string().email("Email inválido"),
@@ -94,11 +95,13 @@ export default function Auth() {
       <Helmet>
         <title>{isLogin ? "Iniciar Sesión" : "Registrarse"} | AlienFlow AI Tor</title>
       </Helmet>
-      <div className="flex min-h-screen items-center justify-center bg-background p-4">
-        <Card className="w-full max-w-md border-primary/30">
+      <SpaceBackground />
+      <div className="relative flex min-h-screen items-center justify-center p-4">
+        <Card className="w-full max-w-md border-secondary/30 bg-card/80 backdrop-blur-sm">
           <CardHeader className="text-center">
-            <CardTitle className="text-3xl font-heading text-primary">
-              ΔlieπFlΦw
+            <CardTitle className="text-3xl font-heading">
+              <span className="text-secondary">Δlieπ</span>
+              <span className="text-primary">FlΦw</span>
             </CardTitle>
             <CardDescription className="text-muted-foreground">
               {isLogin ? "Inicia sesión para acceder a AI Tor" : "Crea tu cuenta para acceder a AI Tor"}
