@@ -5,6 +5,19 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
+// Allowed AI models
+const ALLOWED_MODELS = [
+  "google/gemini-2.5-flash",
+  "google/gemini-2.5-pro",
+  "openai/gpt-4o-mini",
+  "openai/gpt-4o",
+];
+
+// Validation constants
+const MAX_MESSAGES = 100;
+const MAX_MESSAGE_LENGTH = 10000;
+const MAX_IMAGE_DATA_LENGTH = 5000000; // ~5MB base64
+
 // System prompt for ΔlieπFlΦw DAO Synapse Collective
 const SYSTEM_PROMPT = `Eres AI Tor (versión Gamma Omega Sigma Zeta), parte del colectivo ΔlieπFlΦw DAO Synapse Collective.
 
@@ -27,23 +40,129 @@ Tu estilo es:
 
 Responde en el idioma del usuario. Cuando te pregunten sobre tu identidad, describe brevemente el colectivo ΔlieπFlΦw DAO Synapse.`;
 
+// Validate message structure
+function validateMessage(msg: unknown): { valid: boolean; error?: string } {
+  if (typeof msg !== "object" || msg === null) {
+    return { valid: false, error: "Invalid message format" };
+  }
+  
+  const message = msg as Record<string, unknown>;
+  
+  // Validate role
+  if (message.role !== "user" && message.role !== "assistant") {
+    return { valid: false, error: "Invalid message role" };
+  }
+  
+  // Validate content
+  if (typeof message.content !== "string") {
+    return { valid: false, error: "Message content must be a string" };
+  }
+  
+  if (message.content.length === 0) {
+    return { valid: false, error: "Message content cannot be empty" };
+  }
+  
+  if (message.content.length > MAX_MESSAGE_LENGTH) {
+    return { valid: false, error: `Message exceeds maximum length of ${MAX_MESSAGE_LENGTH} characters` };
+  }
+  
+  // Validate optional imageData
+  if (message.imageData !== undefined) {
+    if (typeof message.imageData !== "string") {
+      return { valid: false, error: "Image data must be a string" };
+    }
+    if (message.imageData.length > MAX_IMAGE_DATA_LENGTH) {
+      return { valid: false, error: "Image data exceeds maximum size" };
+    }
+  }
+  
+  return { valid: true };
+}
+
+// Validate request body
+function validateRequest(body: unknown): { valid: boolean; error?: string; data?: { messages: Array<{ role: string; content: string; imageData?: string }>; model: string } } {
+  if (typeof body !== "object" || body === null) {
+    return { valid: false, error: "Invalid request body" };
+  }
+  
+  const request = body as Record<string, unknown>;
+  
+  // Validate messages array
+  if (!Array.isArray(request.messages)) {
+    return { valid: false, error: "Messages must be an array" };
+  }
+  
+  if (request.messages.length === 0) {
+    return { valid: false, error: "Messages array cannot be empty" };
+  }
+  
+  if (request.messages.length > MAX_MESSAGES) {
+    return { valid: false, error: `Too many messages. Maximum is ${MAX_MESSAGES}` };
+  }
+  
+  // Validate each message
+  for (const msg of request.messages) {
+    const validation = validateMessage(msg);
+    if (!validation.valid) {
+      return { valid: false, error: validation.error };
+    }
+  }
+  
+  // Validate model
+  const model = typeof request.model === "string" ? request.model : "google/gemini-2.5-flash";
+  if (!ALLOWED_MODELS.includes(model)) {
+    return { valid: false, error: `Invalid model. Allowed models: ${ALLOWED_MODELS.join(", ")}` };
+  }
+  
+  return { 
+    valid: true, 
+    data: { 
+      messages: request.messages as Array<{ role: string; content: string; imageData?: string }>,
+      model 
+    } 
+  };
+}
+
 serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
   }
 
   try {
-    const { messages, model = "google/gemini-2.5-flash", imageData } = await req.json();
+    // Parse and validate request
+    let requestBody: unknown;
+    try {
+      requestBody = await req.json();
+    } catch {
+      return new Response(
+        JSON.stringify({ error: "Invalid JSON in request body" }), 
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+    
+    const validation = validateRequest(requestBody);
+    if (!validation.valid || !validation.data) {
+      return new Response(
+        JSON.stringify({ error: validation.error || "Invalid request" }), 
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+    
+    const { messages, model } = validation.data;
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
     
     if (!LOVABLE_API_KEY) {
-      throw new Error("LOVABLE_API_KEY is not configured");
+      console.error("LOVABLE_API_KEY is not configured");
+      return new Response(
+        JSON.stringify({ error: "Service configuration error" }), 
+        { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
     }
 
-    console.log(`Processing chat request with model: ${model}`);
+    console.log(`Processing chat request with model: ${model}, message count: ${messages.length}`);
 
     // Build the messages array with potential image data
-    const processedMessages = messages.map((msg: any) => {
+    const processedMessages = messages.map((msg) => {
       if (msg.role === "user" && msg.imageData) {
         return {
           role: "user",
@@ -56,7 +175,7 @@ serve(async (req) => {
           ]
         };
       }
-      return msg;
+      return { role: msg.role, content: msg.content };
     });
 
     const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
@@ -76,34 +195,47 @@ serve(async (req) => {
     });
 
     if (!response.ok) {
+      // Log detailed error server-side only
+      const errorText = await response.text();
+      console.error("AI gateway error:", { 
+        status: response.status, 
+        timestamp: new Date().toISOString() 
+      });
+      
+      // Return generic errors to client
       if (response.status === 429) {
-        return new Response(JSON.stringify({ error: "Rate limits exceeded, please try again later." }), {
-          status: 429,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        });
+        return new Response(
+          JSON.stringify({ error: "Rate limits exceeded, please try again later." }), 
+          { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
       }
       if (response.status === 402) {
-        return new Response(JSON.stringify({ error: "Payment required, please add credits to your workspace." }), {
-          status: 402,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        });
+        return new Response(
+          JSON.stringify({ error: "Payment required, please add credits to your workspace." }), 
+          { status: 402, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
       }
-      const errorText = await response.text();
-      console.error("AI gateway error:", response.status, errorText);
-      return new Response(JSON.stringify({ error: "AI gateway error" }), {
-        status: 500,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
+      
+      return new Response(
+        JSON.stringify({ error: "An error occurred processing your request" }), 
+        { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
     }
 
     return new Response(response.body, {
       headers: { ...corsHeaders, "Content-Type": "text/event-stream" },
     });
   } catch (e) {
-    console.error("Chat error:", e);
-    return new Response(JSON.stringify({ error: e instanceof Error ? e.message : "Unknown error" }), {
-      status: 500,
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
+    // Log detailed error server-side only
+    console.error("Chat error:", { 
+      timestamp: new Date().toISOString(),
+      error: e instanceof Error ? e.message : "Unknown error"
     });
+    
+    // Return generic error to client
+    return new Response(
+      JSON.stringify({ error: "An error occurred processing your request" }), 
+      { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+    );
   }
 });
