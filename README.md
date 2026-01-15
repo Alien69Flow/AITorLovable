@@ -4,7 +4,9 @@
   <img src="https://raw.githubusercontent.com/Alien69Flow/Alien69Flow/main/Alien.gif" width="100" />
 </p>
 
+---
 ### ⚡ "Si quieres encontrar los secretos del universo, piensa en energía, frecuencia y vibración." — N. Tesla
+---
 
 Este es el núcleo cerebral de **AlienFlowSpace DAO**. Una inteligencia neuronal híbrida diseñada para gestionar la DAO, analizar flujos financieros y unificar la física de neutrinos con la Web 3-4-5.
 
