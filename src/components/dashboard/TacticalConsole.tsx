@@ -6,7 +6,6 @@ import {
   Activity,
   TrendingUp,
   TrendingDown,
-  ChevronDown,
   ChevronUp,
 } from "lucide-react";
 import { useSpaceWeather } from "@/hooks/useSpaceWeather";
@@ -91,7 +90,7 @@ function TensionMeter({ value }: { value: number }) {
 
 export function TacticalConsole() {
   const sw = useSpaceWeather();
-  const [isExpanded, setIsExpanded] = useState(false); // Arranca cerrado en móvil para liberar el globo 3D
+  const [isExpanded, setIsExpanded] = useState(false); // Cerrado por defecto en móvil
 
   const kpColor =
     sw.kpIndex > 5 ? "#f87171" : sw.kpIndex > 4 ? "#fbbf24" : "#34d399";
@@ -104,6 +103,25 @@ export function TacticalConsole() {
   const sScale = sw.stormLevel !== "none" ? sw.stormLevel : "S0";
   const gScale = sw.geomagneticStorm !== "none" ? sw.geomagneticStorm : "G0";
 
+  // Si está cerrado, mostramos una píldora compacta que no estorba en el mapa
+  if (!isExpanded) {
+    return (
+      <button
+        onClick={() => setIsExpanded(true)}
+        className="flex items-center gap-2 px-3 py-2 rounded-xl backdrop-blur-2xl border border-slate-700/40 bg-slate-950/80 shadow-[0_4px_20px_rgba(0,0,0,0.5)] text-left transition-all hover:border-slate-500/50"
+      >
+        <Crosshair className="w-4 h-4 animate-pulse" style={{ color: kpColor }} />
+        <div className="flex items-center gap-1.5">
+          <span className="text-[10px] text-slate-300 uppercase font-medium tracking-wider">Tension</span>
+          <span className="text-xs font-mono font-bold" style={{ color: kpColor }}>
+            {sw.kpIndex.toFixed(1)}
+          </span>
+        </div>
+      </button>
+    );
+  }
+
+  // Si está abierto, renderiza el panel táctico completo con el botón para contraerlo
   return (
     <GlassPanel
       icon={Crosshair}
@@ -115,113 +133,104 @@ export function TacticalConsole() {
         <div className="flex items-center gap-2">
           <StatusBadge variant={kpVariant} glow>{kpStatus}</StatusBadge>
           <button
-            onClick={() => setIsExpanded(!isExpanded)}
+            onClick={() => setIsExpanded(false)}
             className="p-1 rounded-lg bg-slate-800/60 hover:bg-slate-700/65 text-slate-300 transition-colors"
-            aria-label="Toggle Console"
+            aria-label="Collapse Console"
           >
-            {isExpanded ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+            <ChevronUp className="w-4 h-4" />
           </button>
         </div>
       }
     >
-      {isExpanded ? (
-        <div className="space-y-5">
-          {/* Main Kp Index Display */}
-          <div className="text-center py-2">
-            <div className="flex items-center justify-center gap-3 mb-3">
-              <Zap className="w-5 h-5" style={{ color: kpColor }} />
-              <span
-                className="text-4xl font-bold font-mono"
-                style={{ color: kpColor }}
-              >
-                {sw.kpIndex.toFixed(1)}
-              </span>
-            </div>
-            <div className="text-[10px] text-slate-400 uppercase tracking-widest mb-4">
-              Kp Index
-            </div>
-            <TensionMeter value={sw.kpIndex * 10} />
+      <div className="space-y-5">
+        {/* Main Kp Index Display */}
+        <div className="text-center py-2">
+          <div className="flex items-center justify-center gap-3 mb-3">
+            <Zap className="w-5 h-5" style={{ color: kpColor }} />
+            <span
+              className="text-4xl font-bold font-mono"
+              style={{ color: kpColor }}
+            >
+              {sw.kpIndex.toFixed(1)}
+            </span>
           </div>
-
-          {/* Realtime Indices Grid */}
-          <div>
-            <SectionTitle>NOAA Indices</SectionTitle>
-            <div className="grid grid-cols-3 gap-2">
-              <MetricCard
-                id={rScale}
-                value="Radio"
-                status={rScale !== "R0" ? "alert" : "stable"}
-                variant="compact"
-              />
-              <MetricCard
-                id={sScale}
-                value="Solar"
-                status={sScale !== "S0" ? "warn" : "stable"}
-                variant="compact"
-              />
-              <MetricCard
-                id={gScale}
-                value="Geo"
-                status={gScale !== "G0" ? "alert" : "stable"}
-                variant="compact"
-              />
-            </div>
+          <div className="text-[10px] text-slate-400 uppercase tracking-widest mb-4">
+            Kp Index
           </div>
+          <TensionMeter value={sw.kpIndex * 10} />
+        </div>
 
-          {/* Sparkline Chart */}
-          <div className="bg-slate-800/20 border border-slate-700/20 rounded-xl p-3">
-            <div className="flex items-center justify-between mb-2">
-              <div className="flex items-center gap-2">
-                <Activity className="w-3.5 h-3.5 text-slate-400" />
-                <span className="text-[9px] uppercase tracking-wider text-slate-500">
-                  Tension Trend
-                </span>
-              </div>
-              <div className="flex items-center gap-1.5">
-                {sw.kpIndex > 3 ? (
-                  <TrendingUp className="w-3 h-3 text-amber-400" />
-                ) : (
-                  <TrendingDown className="w-3 h-3 text-emerald-400" />
-                )}
-                <span className="text-[9px] font-mono" style={{ color: kpColor }}>
-                  {sw.kpIndex > 3 ? "+0.2" : "-0.1"}
-                </span>
-              </div>
-            </div>
-            <TensionSparkline value={sw.kpIndex * 10} color={kpColor} />
-            <div className="flex justify-between text-[8px] text-slate-600 mt-1.5 px-2">
-              <span>-24h</span>
-              <span>-12h</span>
-              <span>-6h</span>
-              <span>-1h</span>
-              <span>NOW</span>
-            </div>
-          </div>
-
-          {/* Status Footer */}
-          <div className="flex items-center justify-between pt-2 border-t border-slate-700/25">
-            <div className="flex items-center gap-2">
-              <Wifi className="w-3.5 h-3.5 text-slate-400" />
-              <span className="text-[9px] text-slate-500 uppercase tracking-wider">
-                Data Link
-              </span>
-            </div>
-            <div className="flex items-center gap-2">
-              <LedIndicator color="#34d399" active size="xs" />
-              <span className="text-[9px] text-emerald-400 uppercase font-semibold">
-                Real-time
-              </span>
-            </div>
+        {/* Realtime Indices Grid */}
+        <div>
+          <SectionTitle>NOAA Indices</SectionTitle>
+          <div className="grid grid-cols-3 gap-2">
+            <MetricCard
+              id={rScale}
+              value="Radio"
+              status={rScale !== "R0" ? "alert" : "stable"}
+              variant="compact"
+            />
+            <MetricCard
+              id={sScale}
+              value="Solar"
+              status={sScale !== "S0" ? "warn" : "stable"}
+              variant="compact"
+            />
+            <MetricCard
+              id={gScale}
+              value="Geo"
+              status={gScale !== "G0" ? "alert" : "stable"}
+              variant="compact"
+            />
           </div>
         </div>
-      ) : (
-        <div 
-          onClick={() => setIsExpanded(true)}
-          className="text-center py-1 text-[10px] text-slate-400 font-mono tracking-wider cursor-pointer hover:text-slate-200 transition-colors"
-        >
-          TAP TO EXPAND TENSION FEED
+
+        {/* Sparkline Chart */}
+        <div className="bg-slate-800/20 border border-slate-700/20 rounded-xl p-3">
+          <div className="flex items-center justify-between mb-2">
+            <div className="flex items-center gap-2">
+              <Activity className="w-3.5 h-3.5 text-slate-400" />
+              <span className="text-[9px] uppercase tracking-wider text-slate-500">
+                Tension Trend
+              </span>
+            </div>
+            <div className="flex items-center gap-1.5">
+              {sw.kpIndex > 3 ? (
+                <TrendingUp className="w-3 h-3 text-amber-400" />
+              ) : (
+                <TrendingDown className="w-3 h-3 text-emerald-400" />
+              )}
+              <span className="text-[9px] font-mono" style={{ color: kpColor }}>
+                {sw.kpIndex > 3 ? "+0.2" : "-0.1"}
+              </span>
+            </div>
+          </div>
+          <TensionSparkline value={sw.kpIndex * 10} color={kpColor} />
+          <div className="flex justify-between text-[8px] text-slate-600 mt-1.5 px-2">
+            <span>-24h</span>
+            <span>-12h</span>
+            <span>-6h</span>
+            <span>-1h</span>
+            <span>NOW</span>
+          </div>
         </div>
-      )}
+
+        {/* Status Footer */}
+        <div className="flex items-center justify-between pt-2 border-t border-slate-700/25">
+          <div className="flex items-center gap-2">
+            <Wifi className="w-3.5 h-3.5 text-slate-400" />
+            <span className="text-[9px] text-slate-500 uppercase tracking-wider">
+              Data Link
+            </span>
+          </div>
+          <div className="flex items-center gap-2">
+            <LedIndicator color="#34d399" active size="xs" />
+            <span className="text-[9px] text-emerald-400 uppercase font-semibold">
+              Real-time
+            </span>
+          </div>
+        </div>
+      </div>
     </GlassPanel>
   );
 }
