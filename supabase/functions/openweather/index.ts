@@ -36,7 +36,8 @@ async function fetchOne(lat: string, lon: string) {
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
-  const blocked = guardPublic(req, corsHeaders, 60);
+  const isTile = new URL(req.url).searchParams.has("tile");
+  const blocked = guardPublic(req, corsHeaders, isTile ? 900 : 60);
   if (blocked) return blocked;
   try {
     if (!KEY) {
