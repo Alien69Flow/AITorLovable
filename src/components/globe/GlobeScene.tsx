@@ -2,6 +2,7 @@ import { useEffect, useRef, useState, useCallback } from "react";
 import Globe from "react-globe.gl";
 import * as THREE from "three";
 import { useSpaceWeather } from "@/hooks/useSpaceWeather";
+import type { EnvLayerKey } from "@/lib/globe-layers";
 import {
   createAtmosphereShell,
   createAuroraCurtains,
@@ -305,7 +306,7 @@ export function GlobeScene({
   }, [enhanceScene]);
 
   useEffect(() => { if (cloudsMeshRef.current) cloudsMeshRef.current.visible = cloudsEnabled; }, [cloudsEnabled]);
-  useEffect(() => { if (atmosphereShellRef.current) atmosphereShellRef.current.visible = localAtmosphereEnabled; }, [localAtmosphereEnabled]);
+  useEffect(() => { if (atmosphereShellRef.current) atmosphereShellRef.current.visible = atmosphereEnabled; }, [atmosphereEnabled]);
 
   useEffect(() => {
     if (!weatherEnabled) { setWeatherHeat([]); return; }
