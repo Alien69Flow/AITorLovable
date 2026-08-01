@@ -77,11 +77,15 @@ Deno.serve(async (req) => {
 
     // Write actions require an admin role.
     if (WRITE_ACTIONS.has(action)) {
-      const { data: isAdmin } = await supabase.rpc('has_role', {
-        _user_id: userData.user.id,
-        _role: 'admin',
-      });
-      if (!isAdmin) {
+      // Read the caller's own roles under RLS (the has_role helper is no
+      // longer executable by client roles).
+      const { data: roleRow } = await supabase
+        .from('user_roles')
+        .select('role')
+        .eq('user_id', userData.user.id)
+        .eq('role', 'admin')
+        .maybeSingle();
+      if (!roleRow) {
         return new Response(JSON.stringify({ error: 'Forbidden' }), {
           status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         });
