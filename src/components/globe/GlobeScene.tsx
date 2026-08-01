@@ -2,6 +2,7 @@ import { useEffect, useRef, useState, useCallback } from "react";
 import Globe from "react-globe.gl";
 import * as THREE from "three";
 import { useSpaceWeather } from "@/hooks/useSpaceWeather";
+import type { EnvLayerKey } from "@/lib/globe-layers";
 import {
   createAtmosphereShell,
   createAuroraCurtains,
@@ -108,11 +109,8 @@ interface GlobeSceneProps {
   onHotspotClick?: (d: UnifiedHotspotData | null) => void;
   onReady?: (navigateFn: (lat: number, lng: number, altitude: number) => void) => void;
   externalMarkers?: UnifiedHotspotData[];
-  cloudsEnabled?: boolean;
-  weatherEnabled?: boolean;
-  firesEnabled?: boolean;
-  aircraftEnabled?: boolean;
-  marketsEnabled?: boolean;
+  /** Active environmental / OSINT layers (shared with the Cesium engine). */
+  layers?: Set<EnvLayerKey>;
 }
 
 const ZARAGOZA = { lat: 41.65, lon: -0.88 };
@@ -121,24 +119,21 @@ export function GlobeScene({
   onHotspotClick,
   onReady,
   externalMarkers,
-  cloudsEnabled: cloudsEnabledProp = true,
-  weatherEnabled: weatherEnabledProp = true,
-  firesEnabled: firesEnabledProp = true,
-  aircraftEnabled: aircraftEnabledProp = true,
-  marketsEnabled: marketsEnabledProp = true,
+  layers,
 }: GlobeSceneProps) {
-  const [localCloudsEnabled, setLocalCloudsEnabled] = useState(cloudsEnabledProp);
-  const [localWeatherEnabled, setLocalWeatherEnabled] = useState(weatherEnabledProp);
-  const [localAtmosphereEnabled, setLocalAtmosphereEnabled] = useState(true);
-  const [localFiresEnabled, setLocalFiresEnabled] = useState(firesEnabledProp);
-  const [localAircraftEnabled, setLocalAircraftEnabled] = useState(aircraftEnabledProp);
-  const [localMarketsEnabled, setLocalMarketsEnabled] = useState(marketsEnabledProp);
-
-  const cloudsEnabled = localCloudsEnabled;
-  const weatherEnabled = localWeatherEnabled;
-  const firesEnabled = localFiresEnabled;
-  const aircraftEnabled = localAircraftEnabled;
-  const marketsEnabled = localMarketsEnabled;
+  const has = useCallback(
+    (k: EnvLayerKey) => (layers ? layers.has(k) : true),
+    [layers]
+  );
+  const cloudsEnabled = has("clouds");
+  const atmosphereEnabled = has("atmosphere");
+  const weatherEnabled =
+    has("temperature") || has("precipitation") || has("isobars") || has("wind");
+  const firesEnabled = has("wildfires");
+  const aircraftEnabled = has("airTraffic");
+  const marketsEnabled = has("marketData");
+  const quakesEnabled = has("earthquakes");
+  const solarEnabled = has("solarActivity");
 
   const globeRef = useRef<any>();
   const containerRef = useRef<HTMLDivElement>(null);
@@ -160,7 +155,7 @@ export function GlobeScene({
 
   const atmosphereColor = kpIndex >= 4 ? "#ff00ff" : "#00ffff";
   const atmosphereAlt = kpIndex >= 6 ? 0.45 : kpIndex >= 4 ? 0.35 : 0.25;
-  const auroraRings = getAuroraRings(kpIndex);
+  const auroraRingsAll = getAuroraRings(kpIndex);
 
   const globeImageUrl = altitude < 0.6
     ? "https://eoimages.gsfc.nasa.gov/images/imagerecords/74000/74218/world.200412.3x21600x10800.jpg"
@@ -311,7 +306,7 @@ export function GlobeScene({
   }, [enhanceScene]);
 
   useEffect(() => { if (cloudsMeshRef.current) cloudsMeshRef.current.visible = cloudsEnabled; }, [cloudsEnabled]);
-  useEffect(() => { if (atmosphereShellRef.current) atmosphereShellRef.current.visible = localAtmosphereEnabled; }, [localAtmosphereEnabled]);
+  useEffect(() => { if (atmosphereShellRef.current) atmosphereShellRef.current.visible = atmosphereEnabled; }, [atmosphereEnabled]);
 
   useEffect(() => {
     if (!weatherEnabled) { setWeatherHeat([]); return; }
@@ -326,6 +321,7 @@ export function GlobeScene({
     if (p.type === 'aircraft') return aircraftEnabled;
     if (p.type === 'nasa') return firesEnabled;
     if (p.type === 'finance') return marketsEnabled;
+    if (p.type === 'quake') return quakesEnabled;
     return true;
   });
 
@@ -334,7 +330,7 @@ export function GlobeScene({
   const getPointRadius = useCallback((d: any) => d.type === 'aircraft' ? 0.08 : d.type === 'quake' ? d.intensity * 0.5 : d.type === 'dao_node' ? 0.6 : d.intensity * 0.35, []);
 
   return (
-    <div className="relative w-full h-[calc(100vh-4rem)] overflow-hidden bg-black">
+    <div className="relative w-full h-full overflow-hidden bg-black">
 
       {/* Globe container */}
       <div ref={containerRef} className="absolute inset-0 z-10">
@@ -376,7 +372,7 @@ export function GlobeScene({
             arcDashGap={0.2}
             arcDashAnimateTime={() => 800 + Math.random() * 2000}
             arcStroke={0.4}
-            ringsData={auroraRings}
+            ringsData={solarEnabled ? auroraRingsAll : []}
             ringLat="lat"
             ringLng="lng"
             ringMaxRadius="maxR"

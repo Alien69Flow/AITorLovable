@@ -64,9 +64,10 @@ interface PricingModalProps {
   open: boolean;
   onClose: () => void;
   reason?: string;
+  currentTier?: "explorer" | "architect" | "alien";
 }
 
-export function PricingModal({ open, onClose, reason }: PricingModalProps) {
+export function PricingModal({ open, onClose, reason, currentTier = "explorer" }: PricingModalProps) {
   useEffect(() => {
     if (!open) return;
     const onKey = (e: KeyboardEvent) => e.key === "Escape" && onClose();
@@ -108,7 +109,12 @@ export function PricingModal({ open, onClose, reason }: PricingModalProps) {
                 plan.highlight ? "border-[#FFD700]/60 shadow-[0_0_30px_rgba(255,215,0,0.18)]" : "border-white/[0.08]"
               }`}
             >
-              {plan.highlight && (
+              {plan.id === currentTier && (
+                <span className="absolute -top-2.5 right-3 text-[8px] font-bold tracking-widest uppercase px-2 py-0.5 rounded-full bg-[#69af00] text-black">
+                  Activo
+                </span>
+              )}
+              {plan.highlight && plan.id !== currentTier && (
                 <span className="absolute -top-2.5 left-1/2 -translate-x-1/2 text-[9px] font-bold tracking-widest uppercase px-2 py-0.5 rounded-full bg-[#FFD700] text-black">
                   Most Popular
                 </span>
@@ -128,19 +134,19 @@ export function PricingModal({ open, onClose, reason }: PricingModalProps) {
                 ))}
               </ul>
               <button
-                disabled={plan.id === "explorer"}
+                disabled={plan.id === currentTier}
                 className={`mt-5 w-full py-2 rounded-md text-[11px] font-bold tracking-widest uppercase transition-all ${
-                  plan.id === "explorer"
+                  plan.id === currentTier
                     ? "bg-white/[0.04] text-white/40 cursor-default"
                     : "bg-gradient-to-r from-[#69af00]/30 to-[#FFD700]/30 text-white hover:from-[#69af00]/50 hover:to-[#FFD700]/50 border border-[#69af00]/40"
                 }`}
                 onClick={() => {
-                  if (plan.id === "explorer") return;
+                  if (plan.id === currentTier) return;
                   // TODO: connect to checkout (Stripe / Paddle / Crypto gateway)
                   alert(`[Simulación] Upgrade a ${plan.name} — pasarela próximamente`);
                 }}
               >
-                {plan.id === "explorer" ? "Plan Actual" : "Upgrade Now"}
+                {plan.id === currentTier ? "Plan Actual" : "Upgrade Now"}
               </button>
             </div>
           ))}

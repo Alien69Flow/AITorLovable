@@ -500,3 +500,16 @@
 .transition-fast {
   transition: all 0.15s cubic-bezier(0.4, 0, 0.2, 1);
 }
+
+/* Visible thin scrollbar for the globe legend / mobile sheets */
+.legend-scroll {
+  scrollbar-width: thin;
+  scrollbar-color: hsl(var(--primary) / 0.5) transparent;
+}
+.legend-scroll::-webkit-scrollbar { width: 6px; }
+.legend-scroll::-webkit-scrollbar-track { background: transparent; }
+.legend-scroll::-webkit-scrollbar-thumb {
+  background: hsl(var(--primary) / 0.45);
+  border-radius: 9999px;
+}
+.legend-scroll::-webkit-scrollbar-thumb:hover { background: hsl(var(--primary) / 0.7); }

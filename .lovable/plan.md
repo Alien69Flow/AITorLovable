@@ -1,136 +1,60 @@
+## Estado actual verificado
 
-Objetivo confirmado: primero recuperar producción, luego conectar la capa OSINT unificada al Globe sin romper `react-globe.gl`, `ResizeObserver` ni la atmósfera/controles actuales.
+- `GlobeDashboard.tsx` renderiza **solo** `GlobeScene.tsx` (react-globe.gl). `CesiumGlobe.tsx` existe y compila pero **no se usa** en ninguna parte.
+- El "duplicado de barras" en la vista Globe es real: hay un **dock de navegación flotante** (Markets/Feed/Alerts/Movers/Tension, líneas 241-260) que repite la `BottomNav` global de `Index.tsx`, más una **barra de ticker crypto propia** además del `LiveTicker`.
+- El `LegendPanel` ya lista Atmosphere/Clouds/Isobars/Wind/Temperature/Precipitation, pero **6 de esos toggles apuntan al mismo flag** (`weatherEnabled`): no son capas independientes. Faltan Earthquakes, Solar Activity y Marine Traffic.
+- El scroll del legend usa `no-scrollbar` (funciona pero sin barra visible).
+- **No existe** `useCredits.ts` ni configuración de wallet (`@reown/appkit` no está en `package.json`). `PricingModal.tsx` es estático, sin comprobación de tier.
+- Sí existe en backend la tabla `user_credits` con columna `paid_tier` (`registered | basic | pro | quantum`), que será la fuente de verdad del tier.
 
-1. Lo que he verificado en el repo
-- El error público encaja con el cliente generado de backend: `src/integrations/supabase/client.ts` depende de `import.meta.env.VITE_SUPABASE_URL` y `VITE_SUPABASE_PUBLISHABLE_KEY` en build time.
-- La pestaña OSINT ya existe y `SystemTab` carga `OsintConsole`, que usa `useOsintIntel` y la función `osint-aggregator`.
-- `useUnifiedIntel` existe, pero `GlobeDashboard` sigue consumiendo `useRealTimeData`.
-- El globo todavía hace fetch directo dentro de `GlobeScene.tsx` a USGS/OpenSky, así que hoy no hay una unificación real de marcadores.
-- `ChatFeedPanel` y `OsintTickerBar` todavía consumen solo USGS/NASA, no Firecrawl.
+---
 
-2. FASE 1 — Reparación del pipeline de producción
-Paso 1.1 — Sincronización de entorno publicado
-- Validar que el frontend publicado reciba las variables restauradas del backend integrado.
-- Forzar un publish limpio del frontend para regenerar el bundle con:
-  - `VITE_SUPABASE_URL`
-  - `VITE_SUPABASE_PUBLISHABLE_KEY`
-- No tocar `src/integrations/supabase/client.ts`, `.env` ni `types.ts`.
+## 1. Motor híbrido adaptativo
 
-Paso 1.2 — Endurecer puntos secundarios que aún dependen de env directo
-- Revisar y normalizar los accesos directos a `import.meta.env` que no pasan por el cliente integrado, para evitar futuras roturas en producción.
-- Prioridad:
-  - `src/hooks/useOsintFeed.ts`
-  - `src/services/agentTools.ts`
+Nuevo `src/components/globe/HybridGlobe.tsx`:
+- Usa `useIsMobile()`. Desktop → `CesiumGlobe`, móvil → `GlobeScene`.
+- Expone una **única interfaz de props** (capas activas, marcadores, `onHotspotClick`, `onReady`/`flyTo`, `kpIndex`) y la adapta a cada motor.
+- Cesium se carga con `React.lazy` + `Suspense` para que el bundle pesado no llegue nunca al móvil.
+- `GlobeDashboard` pasa a renderizar `HybridGlobe` en lugar de `GlobeScene`.
+- Se amplía `CesiumGlobeProps` para aceptar el mismo set de capas (weather overlays, fires, aircraft, markets, solar) y se unifica el tipo `LayerKey`.
 
-Paso 1.3 — Verificación post-build
-- Confirmar que `aitor.lovable.app` deja de lanzar `supabaseUrl is required`.
-- Confirmar que la app monta `Index` y la pestaña `System > OSINT` abre sin pantalla negra.
+## 2. Limpieza de barras y layout móvil
 
-Archivos implicados en esta fase
-- `src/hooks/useOsintFeed.ts`
-- `src/services/agentTools.ts`
-- Publicación frontend limpia
+- Eliminar el dock flotante inferior de `GlobeDashboard` (duplica `BottomNav`).
+- Conservar: ticker crypto superior + `LiveTicker` (una sola fila de eventos) + barra de estado inferior.
+- Restaurar el punto "LIVE" en **rojo** (`bg-red-500` + pulse) en `LiveTicker`.
+- Móvil: los tres botones flotantes (Tension / Legend / Navigate) ya existen; se convierten en un **bottom sheet** deslizable con scroll completo en lugar del overlay superior actual, y se garantiza que ningún panel de escritorio se monte en móvil.
 
-3. FASE 2 — Verificación de OSINT en System
-Paso 2.1 — Comprobar cadena completa
-- `SystemTab` → `OsintConsole` → `useOsintIntel` → `osint-aggregator`
-- Validar estados: loading, error, lastUpdate y render de eventos.
+## 3. Enumeración explícita de capas
 
-Paso 2.2 — Ajustes mínimos si falla la consola OSINT
-- Revisar shape de respuesta del agregador y consistencia de categorías/severidad.
-- Mantener la UI actual; solo corregir integración si hiciera falta.
+Nuevo estado central de capas en `GlobeDashboard` (un objeto `layers` con una clave por capa, no flags compartidos):
 
-Archivos implicados
-- `src/components/dashboard/SystemTab.tsx`
-- `src/components/dashboard/OsintConsole.tsx`
-- `src/hooks/useOsintIntel.ts`
-- `src/hooks/useUnifiedIntel.ts`
-- `supabase/functions/osint-aggregator/index.ts`
+```text
+Atmospheric & Weather : atmosphere · clouds · isobars(pressure) · wind · temperature · precipitation
+Space & Cosmos        : solarActivity (Kp/NOAA + Sentry)            [PREMIUM]
+OSINT & Hazards       : wildfires(FIRMS) · earthquakes(USGS) · airTraffic(OpenSky) · marineTraffic [PREMIUM]
+Markets & Feeds       : marketData
+```
 
-4. FASE 3 — Migración del Globe al núcleo unificado
-Paso 3.1 — Hacer que `GlobeDashboard` use `useUnifiedIntel`
-- Sustituir `useRealTimeData()` por `useUnifiedIntel()`.
-- Tomar desde ahí:
-  - `cryptoPrices`
-  - `spaceWeather`
-  - `earthquakes`
-  - `nasaEvents`
-  - `osint`
-  - `events`
-  - `counts`
+- `LegendPanel` se reescribe en secciones colapsables con **scrollbar vertical visible** (`overflow-y-auto` + estilo fino, se quita `no-scrollbar`).
+- Cada toggle mapea a su propia capa; en Cesium a su `ImageryLayer` (OWM `clouds_new`, `pressure_new`, `wind_new`, `temp_new`, `precipitation_new` vía el proxy `openweather`, RainViewer para radar) y en react-globe.gl a su equivalente ligero (textura/heatmap/puntos).
+- Capas premium: `isobars`, `wind`, `marineTraffic`, `solarActivity` (deep feed).
 
-Paso 3.2 — Separar datos visuales del globo de la lógica de fetch interna
-- Refactorizar `GlobeScene.tsx` para que reciba los marcadores/capas por props desde el dashboard.
-- Eliminar fetches directos embebidos en `GlobeScene` para USGS/OpenSky en favor del flujo unificado.
-- Mantener intactos:
-  - controles de cámara
-  - `onReady`
-  - atmósfera Tesla
-  - moon/sun lighting
-  - `ResizeObserver`
+## 4. Paywall Fase 1 (marcar + bloquear por tier)
 
-Paso 3.3 — Definir contrato unificado de datos
-- Extender `useUnifiedIntel` para exponer:
-  - `mapLayers`
-  - `eventMarkers`
-  - `tickerItems`
-  - `counts`
-- Mantener `useRealTimeData` como base ambiental y usar `useOsintIntel` para la capa Firecrawl.
+- Nuevo `src/hooks/useTier.ts`: lee la sesión de auth y consulta `user_credits.paid_tier`; devuelve `{ tier, hasAccess(required) }`. Invitado → `explorer`.
+- `LegendPanel` muestra un **badge de candado** en las capas premium.
+- Al pulsar una capa bloqueada: no se activa y se abre `PricingModal` con `reason` contextual ("La capa Wind requiere Architect").
+- Si el tier es suficiente, la capa se activa al instante en el globo híbrido.
+- `PricingModal` se conecta al tier actual (marca el plan activo). No se añade wallet ni Unlock en esta fase.
 
-Archivos implicados
-- `src/components/dashboard/GlobeDashboard.tsx`
-- `src/components/globe/GlobeScene.tsx`
-- `src/hooks/useUnifiedIntel.ts`
-- `src/hooks/useRealTimeData.ts`
+## 5. Cosmos: selector Sentry / NASA Eyes / Valhovey
 
-5. FASE 4 — Inyectar OSINT real en feed y ticker del Globe
-Paso 4.1 — ChatFeedPanel
-- Mezclar eventos Firecrawl con USGS/NASA/Crypto en el panel derecho.
-- Ordenar por frescura/severidad.
-- Mantener filtros y búsqueda.
+- `SolarSystemTab.tsx` gana un sub-selector de pestañas: **NASA Eyes**, **Sentry** (`sentry.artificialisabel.com`), **Valhovey** (`valhovey.github.io`), cada uno en iframe responsive con estado de carga y fallback "abrir en nueva pestaña" si el sitio bloquea el embebido.
+- El toggle "Solar Activity" del `LegendPanel` proyecta métricas de clima espacial (Kp de `useSpaceWeather` + NOAA) sobre el globo.
 
-Paso 4.2 — OsintTickerBar
-- Alimentarlo con `tickerItems` unificados.
-- Incluir headlines Firecrawl además de NOAA/NASA/USGS.
+## Notas técnicas
 
-Paso 4.3 — Marcadores del globo
-- Mapear eventos OSINT con coordenadas cuando existan.
-- Si un evento no trae coordenadas, mantenerlo en feed/ticker pero no forzarlo como punto geográfico.
-
-Archivos implicados
-- `src/components/dashboard/ChatFeedPanel.tsx`
-- `src/components/dashboard/OsintTickerBar.tsx`
-- `src/components/globe/GlobeScene.tsx`
-- `src/hooks/useUnifiedIntel.ts`
-
-6. Orden exacto de ejecución recomendado
-1. Reparar publicación frontend y regenerar build limpio
-2. Verificar `System > OSINT`
-3. Migrar `GlobeDashboard` a `useUnifiedIntel`
-4. Refactorizar `GlobeScene` para recibir datos por props
-5. Conectar OSINT al panel derecho y ticker inferior
-6. Validación final en preview y URL pública
-
-7. Criterios de aceptación
-- `aitor.lovable.app` carga sin `supabaseUrl is required`
-- `System > OSINT` muestra eventos reales
-- `GlobeDashboard` usa `useUnifiedIntel`
-- El globo recibe datos unificados sin perder interacción ni renderizado
-- `ChatFeedPanel` y `OsintTickerBar` muestran Firecrawl + USGS/NASA/Crypto
-- No se modifica `client.ts`, `types.ts` ni `.env`
-
-8. Archivos que modificaré
-- `src/hooks/useOsintFeed.ts`
-- `src/services/agentTools.ts`
-- `src/components/dashboard/SystemTab.tsx`
-- `src/components/dashboard/OsintConsole.tsx`
-- `src/hooks/useOsintIntel.ts`
-- `src/hooks/useUnifiedIntel.ts`
-- `src/hooks/useRealTimeData.ts`
-- `src/components/dashboard/GlobeDashboard.tsx`
-- `src/components/globe/GlobeScene.tsx`
-- `src/components/dashboard/ChatFeedPanel.tsx`
-- `src/components/dashboard/OsintTickerBar.tsx`
-- `supabase/functions/osint-aggregator/index.ts`
-
-Al aprobar este plan, la ejecución debe arrancar por la FASE 1 para recuperar la URL pública antes de tocar la migración completa del Globe.
+- Sin claves en el cliente: todas las teselas OWM y Cesium siguen pasando por las Edge Functions `openweather` y `cesium-tiles`.
+- Archivos tocados: `GlobeDashboard.tsx`, `LegendPanel.tsx`, `LiveTicker.tsx`, `GlobeScene.tsx`, `CesiumGlobe.tsx`, `PricingModal.tsx`, `SolarSystemTab.tsx`, + nuevos `HybridGlobe.tsx` y `useTier.ts`.
+- No se toca la Edge Function `openweather` salvo que falte alguna capa OWM en su allowlist (se comprobará al implementar).

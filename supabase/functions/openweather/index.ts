@@ -10,6 +10,14 @@ const corsHeaders = {
 
 const KEY = Deno.env.get("OPENWEATHER_API_KEY");
 
+const TILE_LAYERS = new Set([
+  "clouds_new",
+  "precipitation_new",
+  "pressure_new",
+  "wind_new",
+  "temp_new",
+]);
+
 async function fetchOne(lat: string, lon: string) {
   const url = `https://api.openweathermap.org/data/2.5/weather?lat=${lat}&lon=${lon}&appid=${KEY}&units=metric`;
   const r = await fetch(url);
@@ -28,7 +36,8 @@ async function fetchOne(lat: string, lon: string) {
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
-  const blocked = guardPublic(req, corsHeaders, 60);
+  const isTile = new URL(req.url).searchParams.has("tile");
+  const blocked = guardPublic(req, corsHeaders, isTile ? 900 : 60);
   if (blocked) return blocked;
   try {
     if (!KEY) {
@@ -38,6 +47,40 @@ Deno.serve(async (req) => {
       });
     }
     const url = new URL(req.url);
+
+    // Tile proxy: /openweather?tile=clouds_new&z=..&x=..&y=..
+    const tile = url.searchParams.get("tile");
+    if (tile) {
+      if (!TILE_LAYERS.has(tile)) {
+        return new Response(JSON.stringify({ error: "unknown tile layer" }), {
+          status: 400,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+      const z = Number(url.searchParams.get("z"));
+      const x = Number(url.searchParams.get("x"));
+      const y = Number(url.searchParams.get("y"));
+      if (![z, x, y].every((n) => Number.isInteger(n) && n >= 0) || z > 12) {
+        return new Response(JSON.stringify({ error: "invalid tile coords" }), {
+          status: 400,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+      const tileRes = await fetch(
+        `https://tile.openweathermap.org/map/${tile}/${z}/${x}/${y}.png?appid=${KEY}`,
+      );
+      if (!tileRes.ok) {
+        return new Response(null, { status: tileRes.status, headers: corsHeaders });
+      }
+      return new Response(tileRes.body, {
+        headers: {
+          ...corsHeaders,
+          "Content-Type": "image/png",
+          "Cache-Control": "public, max-age=900",
+        },
+      });
+    }
+
     const points = url.searchParams.get("points");
     if (points) {
       const parsed = points.split(";").map((s) => s.split(",")).filter((p) => p.length === 2);

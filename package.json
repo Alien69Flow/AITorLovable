@@ -46,6 +46,7 @@
     "@supabase/supabase-js": "^2.87.1",
     "@tanstack/react-query": "^5.83.0",
     "@types/three": "0.170.0",
+    "cesium": "^1.143.0",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "cmdk": "^1.1.1",
@@ -71,6 +72,7 @@
     "three": "0.170.0",
     "three-render-objects": "1.39.3",
     "vaul": "^0.9.9",
+    "vite-plugin-cesium": "^1.2.23",
     "zod": "^3.25.76"
   },
   "devDependencies": {

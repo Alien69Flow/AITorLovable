@@ -19,12 +19,31 @@ import {
   EllipsoidTerrainProvider,
   CallbackProperty,
   SkyBox,
+  buildModuleUrl,
+  UrlTemplateImageryProvider,
 } from "cesium";
 import "cesium/Build/Cesium/Widgets/widgets.css";
 import type { HotspotData } from "./GlobeScene";
 import type { UAPSighting } from "@/hooks/useUAPSightings";
 import type { Earthquake } from "@/hooks/useEarthquakes";
 import type { NasaEvent } from "@/hooks/useNasaEvents";
+import { GLOBE_LAYERS, type EnvLayerKey } from "@/lib/globe-layers";
+
+const SUPABASE_URL =
+  (import.meta.env.VITE_SUPABASE_URL as string) ||
+  "https://wkdtvrxavkhbifjtvvdw.supabase.co";
+
+/** OWM tiles are proxied server-side so the API key never reaches the bundle. */
+const OWM_TILE_URL = (layerId: string) =>
+  `${SUPABASE_URL}/functions/v1/openweather?tile=${layerId}&z={z}&x={x}&y={y}`;
+
+const OWM_ALPHA: Record<string, number> = {
+  clouds_new: 0.55,
+  precipitation_new: 0.75,
+  pressure_new: 0.5,
+  wind_new: 0.55,
+  temp_new: 0.45,
+};
 
 // The Cesium Ion token is never shipped to the browser bundle; it is fetched
 // at runtime from the server-side `cesium-tiles` proxy.
@@ -73,6 +92,7 @@ interface CesiumGlobeProps {
   onHotspotClick?: (data: HotspotData | null) => void;
   sightings?: UAPSighting[];
   visibleLayers?: Set<LayerKey>;
+  envLayers?: Set<EnvLayerKey>;
   flyTo?: { lat: number; lon: number; alt: number } | null;
   kpIndex?: number;
   earthquakes?: Earthquake[];
@@ -80,11 +100,12 @@ interface CesiumGlobeProps {
 }
 
 export function CesiumGlobe({
-  onHotspotClick, sightings = [], visibleLayers, flyTo, kpIndex = 0,
+  onHotspotClick, sightings = [], visibleLayers, envLayers, flyTo, kpIndex = 0,
   earthquakes = [], nasaEvents = [],
 }: CesiumGlobeProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const viewerRef = useRef<CesiumViewer | null>(null);
+  const owmLayersRef = useRef<Record<string, any>>({});
   const sightingEntityIdsRef = useRef<string[]>([]);
   const marketEntityIdsRef = useRef<string[]>([]);
   const arcEntityIdsRef = useRef<string[]>([]);
@@ -128,16 +149,16 @@ export function CesiumGlobe({
     if (viewer.scene.sun) viewer.scene.sun.show = true;
     if (viewer.scene.moon) viewer.scene.moon.show = true;
 
-    // Dense star field skybox
+    // Dense star field skybox (bundled Tycho star catalog — no CORS dependency)
     try {
       viewer.scene.skyBox = new SkyBox({
         sources: {
-          positiveX: "https://cesium.com/public/SandcastleSampleData/skybox_px.jpg",
-          negativeX: "https://cesium.com/public/SandcastleSampleData/skybox_mx.jpg",
-          positiveY: "https://cesium.com/public/SandcastleSampleData/skybox_py.jpg",
-          negativeY: "https://cesium.com/public/SandcastleSampleData/skybox_my.jpg",
-          positiveZ: "https://cesium.com/public/SandcastleSampleData/skybox_pz.jpg",
-          negativeZ: "https://cesium.com/public/SandcastleSampleData/skybox_mz.jpg",
+          positiveX: buildModuleUrl("Assets/Textures/SkyBox/tycho2t3_80_px.jpg"),
+          negativeX: buildModuleUrl("Assets/Textures/SkyBox/tycho2t3_80_mx.jpg"),
+          positiveY: buildModuleUrl("Assets/Textures/SkyBox/tycho2t3_80_py.jpg"),
+          negativeY: buildModuleUrl("Assets/Textures/SkyBox/tycho2t3_80_my.jpg"),
+          positiveZ: buildModuleUrl("Assets/Textures/SkyBox/tycho2t3_80_pz.jpg"),
+          negativeZ: buildModuleUrl("Assets/Textures/SkyBox/tycho2t3_80_mz.jpg"),
         },
       });
     } catch (e) {
@@ -220,6 +241,43 @@ export function CesiumGlobe({
     };
   }, [handleHotspotClick]);
 
+  // Environmental imagery overlays (OpenWeatherMap via secure proxy)
+  useEffect(() => {
+    const viewer = viewerRef.current;
+    if (!viewer || viewer.isDestroyed()) return;
+    const active = envLayers ?? new Set<EnvLayerKey>();
+
+    GLOBE_LAYERS.filter((l) => l.owm).forEach((def) => {
+      const id = def.owm as string;
+      const existing = owmLayersRef.current[id];
+      const shouldShow = active.has(def.key);
+
+      if (shouldShow && !existing) {
+        try {
+          const layer = viewer.imageryLayers.addImageryProvider(
+            new UrlTemplateImageryProvider({
+              url: OWM_TILE_URL(id),
+              maximumLevel: 9,
+              credit: "OpenWeatherMap",
+            })
+          );
+          layer.alpha = OWM_ALPHA[id] ?? 0.5;
+          owmLayersRef.current[id] = layer;
+        } catch (e) {
+          console.warn("OWM layer failed:", id, e);
+        }
+      } else if (!shouldShow && existing) {
+        try { viewer.imageryLayers.remove(existing, true); } catch { /* noop */ }
+        delete owmLayersRef.current[id];
+      }
+    });
+
+    // Atmosphere halo toggle
+    if (viewer.scene.skyAtmosphere) {
+      viewer.scene.skyAtmosphere.show = active.has("atmosphere");
+    }
+  }, [envLayers]);
+
   // Tesla Aurora — dynamic polar rings reacting to Kp
   useEffect(() => {
     const viewer = viewerRef.current;
@@ -262,8 +320,9 @@ export function CesiumGlobe({
             }, false) as any,
             semiMinorAxis: new CallbackProperty(() => {
               const elapsed = (Date.now() - startTime) % 6000;
-              const pulse = 1 + 0.15 * Math.sin((elapsed / 6000) * Math.PI * 2 + ring + 1);
-              return baseRadius * 0.6 * pulse;
+              const major = baseRadius * (1 + 0.15 * Math.sin((elapsed / 6000) * Math.PI * 2 + ring));
+              const minor = baseRadius * 0.6 * (1 + 0.15 * Math.sin((elapsed / 6000) * Math.PI * 2 + ring + 1));
+              return Math.min(minor, major);
             }, false) as any,
             material: hexToColor(color, 0.03 + intensity * 0.05),
             outline: true,
@@ -307,7 +366,7 @@ export function CesiumGlobe({
           semiMinorAxis: new CallbackProperty(() => {
             const elapsed = (Date.now() - startTime) % 4000;
             const pulse = 1 + 0.3 * Math.sin((elapsed / 4000) * Math.PI * 2);
-            return baseRadius * pulse;
+            return baseRadius * pulse * 0.999;
           }, false) as any,
           material: Color.fromCssColorString("#FF4444").withAlpha(
             Math.min(0.6, q.magnitude / 10)
