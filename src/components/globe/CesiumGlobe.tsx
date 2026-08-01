@@ -19,12 +19,30 @@ import {
   EllipsoidTerrainProvider,
   CallbackProperty,
   SkyBox,
+  UrlTemplateImageryProvider,
 } from "cesium";
 import "cesium/Build/Cesium/Widgets/widgets.css";
 import type { HotspotData } from "./GlobeScene";
 import type { UAPSighting } from "@/hooks/useUAPSightings";
 import type { Earthquake } from "@/hooks/useEarthquakes";
 import type { NasaEvent } from "@/hooks/useNasaEvents";
+import { GLOBE_LAYERS, type EnvLayerKey } from "@/lib/globe-layers";
+
+const SUPABASE_URL =
+  (import.meta.env.VITE_SUPABASE_URL as string) ||
+  "https://wkdtvrxavkhbifjtvvdw.supabase.co";
+
+/** OWM tiles are proxied server-side so the API key never reaches the bundle. */
+const OWM_TILE_URL = (layerId: string) =>
+  `${SUPABASE_URL}/functions/v1/openweather?tile=${layerId}&z={z}&x={x}&y={y}`;
+
+const OWM_ALPHA: Record<string, number> = {
+  clouds_new: 0.55,
+  precipitation_new: 0.75,
+  pressure_new: 0.5,
+  wind_new: 0.55,
+  temp_new: 0.45,
+};
 
 // The Cesium Ion token is never shipped to the browser bundle; it is fetched
 // at runtime from the server-side `cesium-tiles` proxy.
@@ -73,6 +91,7 @@ interface CesiumGlobeProps {
   onHotspotClick?: (data: HotspotData | null) => void;
   sightings?: UAPSighting[];
   visibleLayers?: Set<LayerKey>;
+  envLayers?: Set<EnvLayerKey>;
   flyTo?: { lat: number; lon: number; alt: number } | null;
   kpIndex?: number;
   earthquakes?: Earthquake[];
@@ -80,11 +99,12 @@ interface CesiumGlobeProps {
 }
 
 export function CesiumGlobe({
-  onHotspotClick, sightings = [], visibleLayers, flyTo, kpIndex = 0,
+  onHotspotClick, sightings = [], visibleLayers, envLayers, flyTo, kpIndex = 0,
   earthquakes = [], nasaEvents = [],
 }: CesiumGlobeProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const viewerRef = useRef<CesiumViewer | null>(null);
+  const owmLayersRef = useRef<Record<string, any>>({});
   const sightingEntityIdsRef = useRef<string[]>([]);
   const marketEntityIdsRef = useRef<string[]>([]);
   const arcEntityIdsRef = useRef<string[]>([]);
