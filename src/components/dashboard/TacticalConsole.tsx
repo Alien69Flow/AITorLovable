@@ -133,7 +133,7 @@ export function TacticalConsole({
     <GlassPanel
       icon={Crosshair}
       title="Global Tension"
-      className="w-[300px]"
+      className="w-full max-w-[300px]"
       glowBorder
       glowColor={kpColor}
       headerRight={

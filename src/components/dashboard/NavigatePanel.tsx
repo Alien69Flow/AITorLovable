@@ -41,7 +41,7 @@ export function NavigatePanel({ onNavigate, forceOpen, onClose }: NavigatePanelP
       {open && (
         <div className="px-3.5 pb-3.5 space-y-2.5">
           {/* Region flags row */}
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 flex-wrap">
             {REGIONS.map(r => (
               <button
                 key={r.label}
