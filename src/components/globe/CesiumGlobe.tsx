@@ -19,6 +19,7 @@ import {
   EllipsoidTerrainProvider,
   CallbackProperty,
   SkyBox,
+  buildModuleUrl,
   UrlTemplateImageryProvider,
 } from "cesium";
 import "cesium/Build/Cesium/Widgets/widgets.css";
@@ -148,16 +149,16 @@ export function CesiumGlobe({
     if (viewer.scene.sun) viewer.scene.sun.show = true;
     if (viewer.scene.moon) viewer.scene.moon.show = true;
 
-    // Dense star field skybox
+    // Dense star field skybox (bundled Tycho star catalog — no CORS dependency)
     try {
       viewer.scene.skyBox = new SkyBox({
         sources: {
-          positiveX: "https://cesium.com/public/SandcastleSampleData/skybox_px.jpg",
-          negativeX: "https://cesium.com/public/SandcastleSampleData/skybox_mx.jpg",
-          positiveY: "https://cesium.com/public/SandcastleSampleData/skybox_py.jpg",
-          negativeY: "https://cesium.com/public/SandcastleSampleData/skybox_my.jpg",
-          positiveZ: "https://cesium.com/public/SandcastleSampleData/skybox_pz.jpg",
-          negativeZ: "https://cesium.com/public/SandcastleSampleData/skybox_mz.jpg",
+          positiveX: buildModuleUrl("Assets/Textures/SkyBox/tycho2t3_80_px.jpg"),
+          negativeX: buildModuleUrl("Assets/Textures/SkyBox/tycho2t3_80_mx.jpg"),
+          positiveY: buildModuleUrl("Assets/Textures/SkyBox/tycho2t3_80_py.jpg"),
+          negativeY: buildModuleUrl("Assets/Textures/SkyBox/tycho2t3_80_my.jpg"),
+          positiveZ: buildModuleUrl("Assets/Textures/SkyBox/tycho2t3_80_pz.jpg"),
+          negativeZ: buildModuleUrl("Assets/Textures/SkyBox/tycho2t3_80_mz.jpg"),
         },
       });
     } catch (e) {
