@@ -1,6 +1,8 @@
 // OpenWeather proxy — keeps OPENWEATHER_API_KEY server-side.
 // GET /openweather?lat=..&lon=..  -> current weather JSON
 // GET /openweather?points=lat,lon;lat,lon  -> batched array
+import { guardPublic } from "../_shared/guard.ts";
+
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
@@ -26,6 +28,8 @@ async function fetchOne(lat: string, lon: string) {
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
+  const blocked = guardPublic(req, corsHeaders, 60);
+  if (blocked) return blocked;
   try {
     if (!KEY) {
       return new Response(JSON.stringify({ error: "OPENWEATHER_API_KEY missing" }), {

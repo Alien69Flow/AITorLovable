@@ -1,3 +1,5 @@
+import { guardPublic } from "../_shared/guard.ts";
+
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version',
@@ -8,15 +10,20 @@ Deno.serve(async (req) => {
     return new Response(null, { headers: corsHeaders });
   }
 
+  const blocked = guardPublic(req, corsHeaders, 10);
+  if (blocked) return blocked;
+
   try {
     const { query, options } = await req.json();
 
-    if (!query) {
+    if (!query || typeof query !== 'string' || query.length > 300) {
       return new Response(
-        JSON.stringify({ success: false, error: 'Query is required' }),
+        JSON.stringify({ success: false, error: 'A valid query (max 300 chars) is required' }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
+
+    const limit = Math.min(Math.max(Number(options?.limit) || 5, 1), 10);
 
     const apiKey = Deno.env.get('FIRECRAWL_API_KEY');
     if (!apiKey) {
@@ -37,7 +44,7 @@ Deno.serve(async (req) => {
       },
       body: JSON.stringify({
         query,
-        limit: options?.limit || 5,
+        limit,
         lang: options?.lang || 'es',
         country: options?.country,
         tbs: options?.tbs,
