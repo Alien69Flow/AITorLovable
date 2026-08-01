@@ -320,8 +320,9 @@ export function CesiumGlobe({
             }, false) as any,
             semiMinorAxis: new CallbackProperty(() => {
               const elapsed = (Date.now() - startTime) % 6000;
-              const pulse = 1 + 0.15 * Math.sin((elapsed / 6000) * Math.PI * 2 + ring + 1);
-              return baseRadius * 0.6 * pulse;
+              const major = baseRadius * (1 + 0.15 * Math.sin((elapsed / 6000) * Math.PI * 2 + ring));
+              const minor = baseRadius * 0.6 * (1 + 0.15 * Math.sin((elapsed / 6000) * Math.PI * 2 + ring + 1));
+              return Math.min(minor, major);
             }, false) as any,
             material: hexToColor(color, 0.03 + intensity * 0.05),
             outline: true,
@@ -365,7 +366,7 @@ export function CesiumGlobe({
           semiMinorAxis: new CallbackProperty(() => {
             const elapsed = (Date.now() - startTime) % 4000;
             const pulse = 1 + 0.3 * Math.sin((elapsed / 4000) * Math.PI * 2);
-            return baseRadius * pulse;
+            return baseRadius * pulse * 0.999;
           }, false) as any,
           material: Color.fromCssColorString("#FF4444").withAlpha(
             Math.min(0.6, q.magnitude / 10)
