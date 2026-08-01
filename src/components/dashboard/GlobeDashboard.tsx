@@ -6,7 +6,7 @@ import { TacticalConsole } from "./TacticalConsole";
 import { LegendPanel, type LayerKey } from "./LegendPanel";
 import { NavigatePanel } from "./NavigatePanel";
 import { ChatFeedPanel } from "./ChatFeedPanel";
-import { OsintTickerBar } from "./OsintTickerBar";
+
 import { useUnifiedIntel } from "@/hooks/useUnifiedIntel";
 import { Volume2, TrendingUp, Radio, Bell, Activity, Globe, Layers, Cpu, Wifi, CircleCheck as CheckCircle2, Crosshair, Compass } from "lucide-react";
 import { NavPill, LedIndicator } from "./GlassPanels";
@@ -23,7 +23,6 @@ export function GlobeDashboard() {
     spaceWeather,
     counts,
     eventMarkers,
-    tickerItems,
     events: osintEvents,
   } = useUnifiedIntel();
   const [visibleLayers, setVisibleLayers] = useState<Set<LayerKey>>(
@@ -263,13 +262,10 @@ export function GlobeDashboard() {
         {/* RIGHT PANEL: Chat Feed (desktop only) */}
         <div className="absolute right-0 top-0 h-full z-20 pointer-events-none hidden md:block">
           <div className="pointer-events-auto h-full">
-            <ChatFeedPanel earthquakes={earthquakes} nasaEvents={nasaEvents} osintEvents={osintEvents} />
+            <ChatFeedPanel earthquakes={earthquakes} nasaEvents={nasaEvents} osintEvents={osintEvents} cryptoPrices={cryptoPrices} />
           </div>
         </div>
       </div>
-
-      {/* OSINT Ticker Bar */}
-      <OsintTickerBar tickerItems={tickerItems} earthquakes={earthquakes} nasaEvents={nasaEvents} />
 
       {/* Status Bar - Premium Footer */}
       <div className="flex items-center justify-between px-2 md:px-5 py-1.5 md:py-2 border-t border-slate-700/30 bg-slate-950/70 backdrop-blur-2xl z-30">

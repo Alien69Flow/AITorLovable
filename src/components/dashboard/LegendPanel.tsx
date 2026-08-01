@@ -17,6 +17,10 @@ import {
   Package,
   PawPrint,
   Sparkles,
+  Gauge,
+  Thermometer,
+  Droplets,
+  Compass,
   type LucideIcon,
 } from "lucide-react";
 import {
@@ -119,6 +123,38 @@ export function LegendPanel({
       onToggle: onToggleClouds,
     },
     {
+      key: "isob",
+      label: "Isobars",
+      color: "#a5b4fc",
+      Icon: Gauge,
+      enabled: !!weatherEnabled,
+      onToggle: onToggleWeather,
+    },
+    {
+      key: "wind",
+      label: "Wind Speed",
+      color: "#6ee7b7",
+      Icon: Compass,
+      enabled: !!weatherEnabled,
+      onToggle: onToggleWeather,
+    },
+    {
+      key: "temp",
+      label: "Temperature",
+      color: "#fb923c",
+      Icon: Thermometer,
+      enabled: !!weatherEnabled,
+      onToggle: onToggleWeather,
+    },
+    {
+      key: "rain",
+      label: "Precipitation",
+      color: "#60a5fa",
+      Icon: Droplets,
+      enabled: !!weatherEnabled,
+      onToggle: onToggleWeather,
+    },
+    {
       key: "fire",
       label: "Wildfire Events",
       color: "#fb923c",
@@ -156,7 +192,7 @@ export function LegendPanel({
       headerRight={<LedIndicator color="#34d399" active size="sm" />}
       onClose={onClose}
     >
-      <div className="space-y-5">
+      <div className="space-y-5 max-h-[70vh] overflow-y-auto no-scrollbar pr-1">
         {/* Data Categories */}
         <div>
           <SectionTitle>Intelligence Categories</SectionTitle>
@@ -210,7 +246,7 @@ export function LegendPanel({
         {/* Overlay Layers */}
         <div>
           <SectionTitle>Overlay Layers</SectionTitle>
-          <div className="grid grid-cols-2 gap-2">
+          <div className="grid grid-cols-1 gap-2">
             {overlayToggles.map((t) => (
               <ToggleRow
                 key={t.key}
