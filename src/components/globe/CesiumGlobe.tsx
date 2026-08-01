@@ -240,6 +240,43 @@ export function CesiumGlobe({
     };
   }, [handleHotspotClick]);
 
+  // Environmental imagery overlays (OpenWeatherMap via secure proxy)
+  useEffect(() => {
+    const viewer = viewerRef.current;
+    if (!viewer || viewer.isDestroyed()) return;
+    const active = envLayers ?? new Set<EnvLayerKey>();
+
+    GLOBE_LAYERS.filter((l) => l.owm).forEach((def) => {
+      const id = def.owm as string;
+      const existing = owmLayersRef.current[id];
+      const shouldShow = active.has(def.key);
+
+      if (shouldShow && !existing) {
+        try {
+          const layer = viewer.imageryLayers.addImageryProvider(
+            new UrlTemplateImageryProvider({
+              url: OWM_TILE_URL(id),
+              maximumLevel: 9,
+              credit: "OpenWeatherMap",
+            })
+          );
+          layer.alpha = OWM_ALPHA[id] ?? 0.5;
+          owmLayersRef.current[id] = layer;
+        } catch (e) {
+          console.warn("OWM layer failed:", id, e);
+        }
+      } else if (!shouldShow && existing) {
+        try { viewer.imageryLayers.remove(existing, true); } catch { /* noop */ }
+        delete owmLayersRef.current[id];
+      }
+    });
+
+    // Atmosphere halo toggle
+    if (viewer.scene.skyAtmosphere) {
+      viewer.scene.skyAtmosphere.show = active.has("atmosphere");
+    }
+  }, [envLayers]);
+
   // Tesla Aurora — dynamic polar rings reacting to Kp
   useEffect(() => {
     const viewer = viewerRef.current;
