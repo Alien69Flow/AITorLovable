@@ -155,7 +155,7 @@ export function GlobeScene({
 
   const atmosphereColor = kpIndex >= 4 ? "#ff00ff" : "#00ffff";
   const atmosphereAlt = kpIndex >= 6 ? 0.45 : kpIndex >= 4 ? 0.35 : 0.25;
-  const auroraRings = getAuroraRings(kpIndex);
+  const auroraRingsAll = getAuroraRings(kpIndex);
 
   const globeImageUrl = altitude < 0.6
     ? "https://eoimages.gsfc.nasa.gov/images/imagerecords/74000/74218/world.200412.3x21600x10800.jpg"
@@ -321,6 +321,7 @@ export function GlobeScene({
     if (p.type === 'aircraft') return aircraftEnabled;
     if (p.type === 'nasa') return firesEnabled;
     if (p.type === 'finance') return marketsEnabled;
+    if (p.type === 'quake') return quakesEnabled;
     return true;
   });
 
@@ -329,7 +330,7 @@ export function GlobeScene({
   const getPointRadius = useCallback((d: any) => d.type === 'aircraft' ? 0.08 : d.type === 'quake' ? d.intensity * 0.5 : d.type === 'dao_node' ? 0.6 : d.intensity * 0.35, []);
 
   return (
-    <div className="relative w-full h-[calc(100vh-4rem)] overflow-hidden bg-black">
+    <div className="relative w-full h-full overflow-hidden bg-black">
 
       {/* Globe container */}
       <div ref={containerRef} className="absolute inset-0 z-10">
@@ -371,7 +372,7 @@ export function GlobeScene({
             arcDashGap={0.2}
             arcDashAnimateTime={() => 800 + Math.random() * 2000}
             arcStroke={0.4}
-            ringsData={auroraRings}
+            ringsData={solarEnabled ? auroraRingsAll : []}
             ringLat="lat"
             ringLng="lng"
             ringMaxRadius="maxR"
