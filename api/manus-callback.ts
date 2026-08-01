@@ -64,6 +64,15 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (req.method !== 'POST') {
     return res.status(405).send('Method Not Allowed');
   }
+
+  // Only accept callbacks that carry the shared Manus webhook secret.
+  const expectedSecret = process.env.MANUS_WEBHOOK_SECRET;
+  const providedSecret =
+    req.headers['x-manus-webhook-secret'] || req.headers['x-webhook-secret'];
+  if (!expectedSecret || providedSecret !== expectedSecret) {
+    return res.status(401).send('Unauthorized');
+  }
+
   try {
     const { event_type, task_detail } = req.body || {};
     console.log(`Manus webhook received: ${event_type}, task: ${task_detail?.task_id}`);

@@ -26,7 +26,8 @@ import type { UAPSighting } from "@/hooks/useUAPSightings";
 import type { Earthquake } from "@/hooks/useEarthquakes";
 import type { NasaEvent } from "@/hooks/useNasaEvents";
 
-const CESIUM_TOKEN = import.meta.env.VITE_CESIUM_TOKEN || "";
+// The Cesium Ion token is never shipped to the browser bundle; it is fetched
+// at runtime from the server-side `cesium-tiles` proxy.
 
 const TACTICAL_COLORS: Record<string, string> = {
   finance: "#FFD700", tech: "#FFD700", uap: "#00FF41", ufo: "#00FF41",
