@@ -138,6 +138,13 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return res.status(405).send('Method Not Allowed');
   }
 
+  // Verify the request really comes from Telegram (setWebhook secret_token).
+  const expectedSecret = process.env.TELEGRAM_WEBHOOK_SECRET;
+  const providedSecret = req.headers['x-telegram-bot-api-secret-token'];
+  if (!expectedSecret || providedSecret !== expectedSecret) {
+    return res.status(401).send('Unauthorized');
+  }
+
   const { message } = req.body || {};
 
   if (!message || !message.chat || !message.text) {

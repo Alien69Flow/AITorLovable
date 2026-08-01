@@ -1,5 +1,7 @@
 // Cesium Ion tile proxy — keeps CESIUM_ION_TOKEN server-side
 // Returns asset endpoint + access token for Bing Maps Aerial (asset 2)
+import { guardPublic } from "../_shared/guard.ts";
+
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
@@ -12,6 +14,9 @@ const DEFAULT_ASSET = "2";
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
+
+  const blocked = guardPublic(req, corsHeaders, 20);
+  if (blocked) return blocked;
 
   try {
     if (!ION_TOKEN) {

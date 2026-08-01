@@ -5,10 +5,20 @@ const corsHeaders = {
 };
 
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+import { secretMatches } from '../_shared/guard.ts';
 
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
+  }
+
+  // Refreshing this feed mutates the public sightings table and spends paid
+  // Firecrawl credits: only trusted schedulers holding the shared secret may run it.
+  const expected = Deno.env.get('UFO_FEED_SECRET');
+  if (!expected || !secretMatches(req.headers.get('x-refresh-secret'), expected)) {
+    return new Response(JSON.stringify({ success: false, error: 'Unauthorized' }), {
+      status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+    });
   }
 
   try {
@@ -99,14 +109,20 @@ Deno.serve(async (req) => {
       }
     }
 
-    // Insert into database (upsert by clearing old + inserting new)
+    // Upsert instead of wiping the table, so a failed scrape never destroys data.
     if (sightings.length > 0) {
-      // Delete old cached sightings
-      await supabase.from('uap_sightings').delete().neq('id', '00000000-0000-0000-0000-000000000000');
-      
-      const { error } = await supabase.from('uap_sightings').insert(sightings);
+      const seen = new Set<string>();
+      const unique = sightings.filter((s) => {
+        const key = `${s.source_url}|${s.location}|${s.date_reported}`;
+        if (!s.source_url || seen.has(key)) return false;
+        seen.add(key);
+        return true;
+      });
+      const { error } = await supabase
+        .from('uap_sightings')
+        .upsert(unique, { onConflict: 'source_url,location,date_reported', ignoreDuplicates: false });
       if (error) {
-        console.error('Insert error:', error);
+        console.error('Upsert error:', error);
       }
     }
 

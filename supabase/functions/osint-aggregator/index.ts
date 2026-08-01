@@ -1,4 +1,6 @@
 // OSINT Aggregator: Firecrawl Search v2 with tactical categorization
+import { guardPublic } from "../_shared/guard.ts";
+
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers":
@@ -47,6 +49,9 @@ function classifySeverity(text: string): Severity {
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
+
+  const blocked = guardPublic(req, corsHeaders, 6);
+  if (blocked) return blocked;
 
   try {
     const apiKey = Deno.env.get("FIRECRAWL_API_KEY");

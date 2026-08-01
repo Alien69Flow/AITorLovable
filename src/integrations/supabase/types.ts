@@ -14,6 +14,45 @@ export type Database = {
   }
   public: {
     Tables: {
+      skills_documents: {
+        Row: {
+          category: string | null
+          content: string
+          created_at: string
+          embedding: string | null
+          id: string
+          metadata: Json
+          source: string | null
+          title: string
+          updated_at: string
+          url: string | null
+        }
+        Insert: {
+          category?: string | null
+          content: string
+          created_at?: string
+          embedding?: string | null
+          id?: string
+          metadata?: Json
+          source?: string | null
+          title: string
+          updated_at?: string
+          url?: string | null
+        }
+        Update: {
+          category?: string | null
+          content?: string
+          created_at?: string
+          embedding?: string | null
+          id?: string
+          metadata?: Json
+          source?: string | null
+          title?: string
+          updated_at?: string
+          url?: string | null
+        }
+        Relationships: []
+      }
       uap_sightings: {
         Row: {
           category: string | null
@@ -59,15 +98,93 @@ export type Database = {
         }
         Relationships: []
       }
+      user_credits: {
+        Row: {
+          paid_tier: Database["public"]["Enums"]["credit_tier"]
+          reset_at: string
+          updated_at: string
+          used: number
+          user_id: string
+        }
+        Insert: {
+          paid_tier?: Database["public"]["Enums"]["credit_tier"]
+          reset_at?: string
+          updated_at?: string
+          used?: number
+          user_id: string
+        }
+        Update: {
+          paid_tier?: Database["public"]["Enums"]["credit_tier"]
+          reset_at?: string
+          updated_at?: string
+          used?: number
+          user_id?: string
+        }
+        Relationships: []
+      }
+      user_roles: {
+        Row: {
+          created_at: string
+          id: string
+          role: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          role: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          role?: Database["public"]["Enums"]["app_role"]
+          user_id?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      consume_credits: {
+        Args: { _cost: number; _user_id: string }
+        Returns: {
+          allowed: boolean
+          limit: number
+          tier: Database["public"]["Enums"]["credit_tier"]
+          used: number
+        }[]
+      }
+      has_role: {
+        Args: {
+          _role: Database["public"]["Enums"]["app_role"]
+          _user_id: string
+        }
+        Returns: boolean
+      }
+      match_skills_documents: {
+        Args: {
+          match_count?: number
+          match_threshold?: number
+          query_embedding: string
+        }
+        Returns: {
+          category: string
+          content: string
+          id: string
+          metadata: Json
+          similarity: number
+          source: string
+          title: string
+          url: string
+        }[]
+      }
     }
     Enums: {
-      [_ in never]: never
+      app_role: "admin" | "moderator" | "user"
+      credit_tier: "registered" | "basic" | "pro" | "quantum"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -194,6 +311,9 @@ export type CompositeTypes<
 
 export const Constants = {
   public: {
-    Enums: {},
+    Enums: {
+      app_role: ["admin", "moderator", "user"],
+      credit_tier: ["registered", "basic", "pro", "quantum"],
+    },
   },
 } as const

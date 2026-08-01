@@ -1,9 +1,21 @@
 /// <reference types="https://esm.sh/@supabase/functions-js/src/edge-runtime.d.ts" />
 
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
+
+const READ_ACTIONS = new Set(['repo_info', 'contents', 'tree', 'branches', 'commits', 'get_file', 'get_ref']);
+const WRITE_ACTIONS = new Set(['create_or_update_file', 'create_branch']);
+
+function allowedRepos(): string[] {
+  return (Deno.env.get('GITHUB_REPO_ALLOWLIST') || '')
+    .split(',')
+    .map((s) => s.trim().toLowerCase())
+    .filter(Boolean);
+}
 
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') {
@@ -19,8 +31,62 @@ Deno.serve(async (req) => {
       );
     }
 
+    // Require a verified user for every call — the shared PAT must never be
+    // reachable anonymously.
+    const authHeader = req.headers.get('Authorization') || '';
+    if (!authHeader.startsWith('Bearer ')) {
+      return new Response(JSON.stringify({ error: 'Unauthorized' }), {
+        status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+    const supabase = createClient(
+      Deno.env.get('SUPABASE_URL')!,
+      Deno.env.get('SUPABASE_ANON_KEY')!,
+      { global: { headers: { Authorization: authHeader } } },
+    );
+    const { data: userData, error: userError } = await supabase.auth.getUser();
+    if (userError || !userData?.user) {
+      return new Response(JSON.stringify({ error: 'Unauthorized' }), {
+        status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+
     const body = await req.json();
     const { action, owner, repo, path, branch, content, message, sha } = body;
+
+    if (typeof action !== 'string' || (!READ_ACTIONS.has(action) && !WRITE_ACTIONS.has(action))) {
+      return new Response(JSON.stringify({ error: 'Unknown action' }), {
+        status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+    if (typeof owner !== 'string' || typeof repo !== 'string' ||
+        !/^[\w.-]{1,100}$/.test(owner) || !/^[\w.-]{1,100}$/.test(repo)) {
+      return new Response(JSON.stringify({ error: 'Invalid repository' }), {
+        status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+
+    // Mandatory, non-empty repository allowlist for the shared PAT.
+    const allowlist = allowedRepos();
+    if (allowlist.length === 0 || !allowlist.includes(`${owner}/${repo}`.toLowerCase())) {
+      return new Response(
+        JSON.stringify({ error: 'Repository not allowed' }),
+        { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
+      );
+    }
+
+    // Write actions require an admin role.
+    if (WRITE_ACTIONS.has(action)) {
+      const { data: isAdmin } = await supabase.rpc('has_role', {
+        _user_id: userData.user.id,
+        _role: 'admin',
+      });
+      if (!isAdmin) {
+        return new Response(JSON.stringify({ error: 'Forbidden' }), {
+          status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+    }
 
     const headers = {
       'Authorization': `Bearer ${GITHUB_PAT}`,
