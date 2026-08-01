@@ -88,9 +88,16 @@ function TensionMeter({ value }: { value: number }) {
   );
 }
 
-export function TacticalConsole() {
+export function TacticalConsole({
+  forceExpanded,
+  onClose,
+}: {
+  forceExpanded?: boolean;
+  onClose?: () => void;
+}) {
   const sw = useSpaceWeather();
-  const [isExpanded, setIsExpanded] = useState(false); // Cerrado por defecto en móvil
+  const [internalExpanded, setInternalExpanded] = useState(false);
+  const isExpanded = forceExpanded !== undefined ? forceExpanded : internalExpanded;
 
   const kpColor =
     sw.kpIndex > 5 ? "#f87171" : sw.kpIndex > 4 ? "#fbbf24" : "#34d399";
@@ -107,7 +114,7 @@ export function TacticalConsole() {
   if (!isExpanded) {
     return (
       <button
-        onClick={() => setIsExpanded(true)}
+        onClick={() => (onClose ? onClose() : setInternalExpanded(true))}
         className="flex items-center gap-2 px-3 py-2 rounded-xl backdrop-blur-2xl border border-slate-700/40 bg-slate-950/80 shadow-[0_4px_20px_rgba(0,0,0,0.5)] text-left transition-all hover:border-slate-500/50"
       >
         <Crosshair className="w-4 h-4 animate-pulse" style={{ color: kpColor }} />
@@ -133,7 +140,7 @@ export function TacticalConsole() {
         <div className="flex items-center gap-2">
           <StatusBadge variant={kpVariant} glow>{kpStatus}</StatusBadge>
           <button
-            onClick={() => setIsExpanded(false)}
+            onClick={() => (onClose ? onClose() : setInternalExpanded(false))}
             className="p-1 rounded-lg bg-slate-800/60 hover:bg-slate-700/65 text-slate-300 transition-colors"
             aria-label="Collapse Console"
           >

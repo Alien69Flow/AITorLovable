@@ -22,14 +22,17 @@ const glass = "bg-slate-900/40 backdrop-blur-xl border border-slate-700/50 round
 
 interface NavigatePanelProps {
   onNavigate?: (lat: number, lng: number, altitude: number) => void;
+  forceOpen?: boolean;
+  onClose?: () => void;
 }
 
-export function NavigatePanel({ onNavigate }: NavigatePanelProps) {
-  const [open, setOpen] = useState(true);
+export function NavigatePanel({ onNavigate, forceOpen, onClose }: NavigatePanelProps) {
+  const [internalOpen, setInternalOpen] = useState(true);
+  const open = forceOpen !== undefined ? forceOpen : internalOpen;
 
   return (
-    <div className={`${glass} w-[260px] overflow-hidden`}>
-      <button onClick={() => setOpen(!open)} className="w-full flex items-center justify-between px-4 py-2.5">
+    <div className={`${glass} w-full max-w-[260px] overflow-hidden`}>
+      <button onClick={() => (onClose ? onClose() : setInternalOpen(!open))} className="w-full flex items-center justify-between px-4 py-2.5">
         <span className="text-[9px] uppercase tracking-wider text-slate-400 font-medium">
           <Compass className="w-3 h-3 inline mr-1.5" />Navigate
         </span>

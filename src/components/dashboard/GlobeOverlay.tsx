@@ -69,9 +69,9 @@ export function GlobeOverlay({
   return (
     <>
       {/* Global Tension Indicator - Premium Badge */}
-      <div className="absolute top-3 left-1/2 -translate-x-1/2 z-10">
+      <div className="absolute top-2 left-1/2 -translate-x-1/2 z-10 px-2 w-full max-w-[440px] sm:w-auto sm:max-w-none">
         <div
-          className="flex items-center gap-3 px-5 py-2 rounded-2xl backdrop-blur-2xl border transition-all duration-500"
+          className="flex items-center gap-2 sm:gap-3 px-3 sm:px-5 py-1.5 sm:py-2 rounded-2xl backdrop-blur-2xl border transition-all duration-500 justify-center"
           style={{
             background: "rgba(15, 23, 42, 0.7)",
             borderColor: `${tensionColor}40`,
@@ -79,7 +79,7 @@ export function GlobeOverlay({
           }}
         >
           <LedIndicator color={tensionColor} active pulse />
-          <div className="flex items-center gap-2">
+          <div className="hidden sm:flex items-center gap-2">
             <Crosshair className="w-4 h-4 text-slate-400" />
             <span className="text-[10px] font-medium uppercase tracking-wider text-slate-400">
               Tension
@@ -87,7 +87,7 @@ export function GlobeOverlay({
           </div>
           <div className="flex items-center gap-2">
             <span
-              className="text-xl font-bold font-mono"
+              className="text-lg sm:text-xl font-bold font-mono"
               style={{ color: tensionColor }}
             >
               {Math.round(tensionLevel)}
@@ -95,17 +95,17 @@ export function GlobeOverlay({
             <StatusBadge variant={tensionVariant}>{tensionStatus}</StatusBadge>
           </div>
           {kpActive && (
-            <div className="flex items-center gap-1.5 px-2 py-1 rounded-lg bg-purple-500/10 border border-purple-500/20">
-              <Zap className="w-3.5 h-3.5 text-purple-400" />
-              <span className="text-[9px] font-mono text-purple-400 font-medium">
+            <div className="flex items-center gap-1.5 px-1.5 sm:px-2 py-0.5 sm:py-1 rounded-lg bg-purple-500/10 border border-purple-500/20">
+              <Zap className="w-3 sm:w-3.5 h-3 sm:h-3.5 text-purple-400" />
+              <span className="text-[8px] sm:text-[9px] font-mono text-purple-400 font-medium">
                 Kp {spaceWeather?.kpIndex?.toFixed(0)}
               </span>
             </div>
           )}
           {earthquakeCount > 0 && (
-            <div className="flex items-center gap-1.5 px-2 py-1 rounded-lg bg-red-500/10 border border-red-500/20">
-              <Activity className="w-3.5 h-3.5 text-red-400" />
-              <span className="text-[9px] font-mono text-red-400 font-medium">
+            <div className="flex items-center gap-1.5 px-1.5 sm:px-2 py-0.5 sm:py-1 rounded-lg bg-red-500/10 border border-red-500/20">
+              <Activity className="w-3 sm:w-3.5 h-3 sm:h-3.5 text-red-400" />
+              <span className="text-[8px] sm:text-[9px] font-mono text-red-400 font-medium">
                 {earthquakeCount}
               </span>
             </div>

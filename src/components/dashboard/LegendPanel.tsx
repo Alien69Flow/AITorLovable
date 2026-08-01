@@ -75,6 +75,7 @@ interface LegendPanelProps {
   onToggleAircraft?: () => void;
   marketsEnabled?: boolean;
   onToggleMarkets?: () => void;
+  onClose?: () => void;
 }
 
 export function LegendPanel({
@@ -91,6 +92,7 @@ export function LegendPanel({
   onToggleAircraft,
   marketsEnabled,
   onToggleMarkets,
+  onClose,
 }: LegendPanelProps) {
   const overlayToggles: Array<{
     key: string;
@@ -148,10 +150,11 @@ export function LegendPanel({
       title="Legend & Controls"
       collapsible
       defaultCollapsed={false}
-      className="w-[300px]"
+      className="w-full max-w-[300px]"
       glowBorder
       glowColor="#22d3ee"
       headerRight={<LedIndicator color="#34d399" active size="sm" />}
+      onClose={onClose}
     >
       <div className="space-y-5">
         {/* Data Categories */}
