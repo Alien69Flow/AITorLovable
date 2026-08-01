@@ -100,7 +100,7 @@ export function CesiumGlobe({
   // Initialize viewer once
   useEffect(() => {
     if (!containerRef.current) return;
-    Ion.defaultAccessToken = CESIUM_TOKEN;
+    Ion.defaultAccessToken = "";
 
     const viewer = new CesiumViewer(containerRef.current, {
       animation: false, baseLayerPicker: false, fullscreenButton: false,
