@@ -108,11 +108,8 @@ interface GlobeSceneProps {
   onHotspotClick?: (d: UnifiedHotspotData | null) => void;
   onReady?: (navigateFn: (lat: number, lng: number, altitude: number) => void) => void;
   externalMarkers?: UnifiedHotspotData[];
-  cloudsEnabled?: boolean;
-  weatherEnabled?: boolean;
-  firesEnabled?: boolean;
-  aircraftEnabled?: boolean;
-  marketsEnabled?: boolean;
+  /** Active environmental / OSINT layers (shared with the Cesium engine). */
+  layers?: Set<EnvLayerKey>;
 }
 
 const ZARAGOZA = { lat: 41.65, lon: -0.88 };
@@ -121,24 +118,21 @@ export function GlobeScene({
   onHotspotClick,
   onReady,
   externalMarkers,
-  cloudsEnabled: cloudsEnabledProp = true,
-  weatherEnabled: weatherEnabledProp = true,
-  firesEnabled: firesEnabledProp = true,
-  aircraftEnabled: aircraftEnabledProp = true,
-  marketsEnabled: marketsEnabledProp = true,
+  layers,
 }: GlobeSceneProps) {
-  const [localCloudsEnabled, setLocalCloudsEnabled] = useState(cloudsEnabledProp);
-  const [localWeatherEnabled, setLocalWeatherEnabled] = useState(weatherEnabledProp);
-  const [localAtmosphereEnabled, setLocalAtmosphereEnabled] = useState(true);
-  const [localFiresEnabled, setLocalFiresEnabled] = useState(firesEnabledProp);
-  const [localAircraftEnabled, setLocalAircraftEnabled] = useState(aircraftEnabledProp);
-  const [localMarketsEnabled, setLocalMarketsEnabled] = useState(marketsEnabledProp);
-
-  const cloudsEnabled = localCloudsEnabled;
-  const weatherEnabled = localWeatherEnabled;
-  const firesEnabled = localFiresEnabled;
-  const aircraftEnabled = localAircraftEnabled;
-  const marketsEnabled = localMarketsEnabled;
+  const has = useCallback(
+    (k: EnvLayerKey) => (layers ? layers.has(k) : true),
+    [layers]
+  );
+  const cloudsEnabled = has("clouds");
+  const atmosphereEnabled = has("atmosphere");
+  const weatherEnabled =
+    has("temperature") || has("precipitation") || has("isobars") || has("wind");
+  const firesEnabled = has("wildfires");
+  const aircraftEnabled = has("airTraffic");
+  const marketsEnabled = has("marketData");
+  const quakesEnabled = has("earthquakes");
+  const solarEnabled = has("solarActivity");
 
   const globeRef = useRef<any>();
   const containerRef = useRef<HTMLDivElement>(null);
