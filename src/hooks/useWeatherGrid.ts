@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import { useUserLocation } from "./useUserLocation";
 
 export interface WeatherPoint {
   lat: number;
@@ -37,14 +38,19 @@ export function useWeatherGrid() {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [lastUpdate, setLastUpdate] = useState<Date | null>(null);
+  const { location } = useUserLocation();
 
   const fetchWeatherGrid = useCallback(async () => {
     try {
       setIsLoading(true);
       setError(null);
 
+      // Usar ubicación del usuario o fallback a Zaragoza
+      const lat = location?.lat ?? 41.6561;
+      const lon = location?.lon ?? -0.8773;
+
       const { data, error: fnError } = await supabase.functions.invoke<WeatherGridResponse>("weather-grid", {
-        body: {},
+        body: { lat, lon },
       });
 
       if (fnError) {
@@ -62,11 +68,15 @@ export function useWeatherGrid() {
     } finally {
       setIsLoading(false);
     }
-  }, []);
+  }, [location?.lat, location?.lon]);
 
   useEffect(() => {
-    fetchWeatherGrid();
-    
+    if (location) {
+      fetchWeatherGrid();
+    }
+  }, [location, fetchWeatherGrid]);
+
+  useEffect(() => {
     // Refresh every 5 minutes
     const interval = setInterval(fetchWeatherGrid, 300000);
     return () => clearInterval(interval);
@@ -82,5 +92,6 @@ export function useWeatherGrid() {
     count: grid.length,
     centerTemp: stats?.centerTemp,
     centerWeather: stats?.centerWeather,
+    userLocation: location,
   };
 }

@@ -5,6 +5,8 @@ import type { EnvLayerKey } from "@/lib/globe-layers";
 import type { Earthquake } from "@/hooks/useEarthquakes";
 import type { NasaEvent } from "@/hooks/useNasaEvents";
 import type { UAPSighting } from "@/hooks/useUAPSightings";
+import type { Flight } from "@/hooks/useAirTraffic";
+import type { Ship } from "@/hooks/useMarineTraffic";
 
 const CesiumGlobe = lazy(() =>
   import("./CesiumGlobe").then((m) => ({ default: m.CesiumGlobe }))
@@ -19,6 +21,8 @@ export interface HybridGlobeProps {
   earthquakes?: Earthquake[];
   nasaEvents?: NasaEvent[];
   sightings?: UAPSighting[];
+  flights?: Flight[];
+  ships?: Ship[];
 }
 
 function GlobeFallback() {
@@ -40,6 +44,8 @@ export function HybridGlobe({
   earthquakes = [],
   nasaEvents = [],
   sightings = [],
+  flights = [],
+  ships = [],
 }: HybridGlobeProps) {
   const isMobile = useIsMobile();
   const [flyTo, setFlyTo] = useState<{ lat: number; lon: number; alt: number } | null>(null);
@@ -79,6 +85,8 @@ export function HybridGlobe({
           kpIndex={layers.has("solarActivity") ? kpIndex : 0}
           earthquakes={layers.has("earthquakes") ? earthquakes : []}
           nasaEvents={layers.has("wildfires") ? nasaEvents : []}
+          flights={layers.has("airTraffic") ? flights : []}
+          ships={layers.has("marineTraffic") ? ships : []}
         />
       </Suspense>
     </div>

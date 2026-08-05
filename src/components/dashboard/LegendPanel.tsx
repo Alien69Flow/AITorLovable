@@ -12,6 +12,8 @@ import {
   PawPrint,
   Sparkles,
   Lock,
+  Plane,
+  Ship,
   type LucideIcon,
 } from "lucide-react";
 import {
@@ -61,6 +63,8 @@ const DATA_SOURCES = [
   { key: "nasa", label: "NASA EONET", color: "#34d399", Icon: Satellite, status: "live" },
   { key: "noaa", label: "NOAA Space Weather", color: "#c084fc", Icon: Radio, status: "live" },
   { key: "owm", label: "OpenWeather Tiles", color: "#22d3ee", Icon: CloudRain, status: "live" },
+  { key: "opensky", label: "OpenSky Air Traffic", color: "#00FFFF", Icon: Plane, status: "live" },
+  { key: "vesselfinder", label: "VesselFinder Marine", color: "#38BDF8", Icon: Ship, status: "live" },
 ] as const;
 
 interface LegendPanelProps {

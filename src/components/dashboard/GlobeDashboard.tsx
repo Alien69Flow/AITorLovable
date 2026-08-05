@@ -11,6 +11,8 @@ import { PricingModal } from "./PricingModal";
 import { useUnifiedIntel } from "@/hooks/useUnifiedIntel";
 import { useUAPSightings } from "@/hooks/useUAPSightings";
 import { useTier } from "@/hooks/useTier";
+import { useAirTraffic } from "@/hooks/useAirTraffic";
+import { useMarineTraffic } from "@/hooks/useMarineTraffic";
 import {
   DEFAULT_ACTIVE_LAYERS,
   TIER_LABEL,
@@ -37,6 +39,10 @@ export function GlobeDashboard() {
   } = useUnifiedIntel();
   const { sightings } = useUAPSightings();
   const { tier, hasAccess } = useTier();
+  
+  // Air & Marine Traffic hooks
+  const { flights, isLoading: airLoading, count: flightCount } = useAirTraffic();
+  const { ships, isLoading: marineLoading, count: shipCount } = useMarineTraffic();
 
   const [visibleLayers, setVisibleLayers] = useState<Set<LayerKey>>(
     new Set(["finance", "intel", "conflict", "geopolitical", "logistics", "cryptozoo", "convergence"])
@@ -132,6 +138,8 @@ export function GlobeDashboard() {
             earthquakes={earthquakes}
             nasaEvents={nasaEvents}
             sightings={sightings}
+            flights={flights}
+            ships={ships}
           />
         </div>
 

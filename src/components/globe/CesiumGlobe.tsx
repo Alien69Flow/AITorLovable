@@ -1,5 +1,5 @@
 // @ts-nocheck
-import { useEffect, useRef, useCallback } from "react";
+import { useEffect, useRef, useCallback, useState } from "react";
 import {
   Ion,
   Viewer as CesiumViewer,
@@ -21,12 +21,16 @@ import {
   SkyBox,
   buildModuleUrl,
   UrlTemplateImageryProvider,
+  ImageryLayer,
+  ProviderViewModel,
 } from "cesium";
 import "cesium/Build/Cesium/Widgets/widgets.css";
 import type { HotspotData } from "./GlobeScene";
 import type { UAPSighting } from "@/hooks/useUAPSightings";
 import type { Earthquake } from "@/hooks/useEarthquakes";
 import type { NasaEvent } from "@/hooks/useNasaEvents";
+import type { Flight } from "@/hooks/useAirTraffic";
+import type { Ship } from "@/hooks/useMarineTraffic";
 import { GLOBE_LAYERS, type EnvLayerKey } from "@/lib/globe-layers";
 
 const SUPABASE_URL =
@@ -38,11 +42,11 @@ const OWM_TILE_URL = (layerId: string) =>
   `${SUPABASE_URL}/functions/v1/openweather?tile=${layerId}&z={z}&x={x}&y={y}`;
 
 const OWM_ALPHA: Record<string, number> = {
-  clouds_new: 0.55,
+  clouds_new: 0.65,
   precipitation_new: 0.75,
-  pressure_new: 0.5,
+  pressure_new: 0.6,
   wind_new: 0.55,
-  temp_new: 0.45,
+  temp_new: 0.55,
 };
 
 // The Cesium Ion token is never shipped to the browser bundle; it is fetched
@@ -97,11 +101,13 @@ interface CesiumGlobeProps {
   kpIndex?: number;
   earthquakes?: Earthquake[];
   nasaEvents?: NasaEvent[];
+  flights?: Flight[];
+  ships?: Ship[];
 }
 
 export function CesiumGlobe({
   onHotspotClick, sightings = [], visibleLayers, envLayers, flyTo, kpIndex = 0,
-  earthquakes = [], nasaEvents = [],
+  earthquakes = [], nasaEvents = [], flights = [], ships = [],
 }: CesiumGlobeProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const viewerRef = useRef<CesiumViewer | null>(null);
@@ -112,6 +118,8 @@ export function CesiumGlobe({
   const teslaAuraRef = useRef<string[]>([]);
   const quakeEntityIdsRef = useRef<string[]>([]);
   const nasaEntityIdsRef = useRef<string[]>([]);
+  const flightEntityIdsRef = useRef<string[]>([]);
+  const shipEntityIdsRef = useRef<string[]>([]);
 
   const handleHotspotClick = useCallback(
     (data: HotspotData | null) => { onHotspotClick?.(data); },
@@ -254,20 +262,30 @@ export function CesiumGlobe({
 
       if (shouldShow && !existing) {
         try {
-          const layer = viewer.imageryLayers.addImageryProvider(
-            new UrlTemplateImageryProvider({
-              url: OWM_TILE_URL(id),
-              maximumLevel: 9,
-              credit: "OpenWeatherMap",
-            })
-          );
-          layer.alpha = OWM_ALPHA[id] ?? 0.5;
+          const imageryProvider = new UrlTemplateImageryProvider({
+            url: OWM_TILE_URL(id),
+            maximumLevel: 10,
+            minimumLevel: 0,
+            credit: "OpenWeatherMap",
+          });
+          
+          const layer = viewer.imageryLayers.addImageryProvider(imageryProvider);
+          // Higher alpha for better visibility
+          layer.alpha = OWM_ALPHA[id] ?? 0.7;
+          // Add above base imagery
+          const baseCount = viewer.imageryLayers.length;
+          viewer.imageryLayers.move(layer, Math.max(1, baseCount - 2));
+          
           owmLayersRef.current[id] = layer;
+          console.log(`[CesiumGlobe] OWM layer added: ${id}, alpha: ${OWM_ALPHA[id] ?? 0.7}`);
         } catch (e) {
           console.warn("OWM layer failed:", id, e);
         }
       } else if (!shouldShow && existing) {
-        try { viewer.imageryLayers.remove(existing, true); } catch { /* noop */ }
+        try { 
+          viewer.imageryLayers.remove(existing, true);
+          console.log(`[CesiumGlobe] OWM layer removed: ${id}`);
+        } catch { /* noop */ }
         delete owmLayersRef.current[id];
       }
     });
@@ -572,6 +590,120 @@ export function CesiumGlobe({
       duration: 1.5,
     });
   }, [flyTo]);
+
+  // Air Traffic layer — aircraft markers from OpenSky Network
+  useEffect(() => {
+    const viewer = viewerRef.current;
+    if (!viewer || viewer.isDestroyed()) return;
+    
+    const active = envLayers ?? new Set<EnvLayerKey>();
+    if (!active.has("airTraffic")) {
+      // Clean up if layer disabled
+      flightEntityIdsRef.current.forEach(id => {
+        const e = viewer.entities.getById(id);
+        if (e) viewer.entities.remove(e);
+      });
+      flightEntityIdsRef.current = [];
+      return;
+    }
+
+    // Remove old entities
+    flightEntityIdsRef.current.forEach(id => {
+      const e = viewer.entities.getById(id);
+      if (e) viewer.entities.remove(e);
+    });
+    flightEntityIdsRef.current = [];
+
+    // Add flight markers
+    flights.forEach((flight, i) => {
+      if (!flight.latitude || !flight.longitude) return;
+      
+      const entityId = `flight-${i}`;
+      viewer.entities.add({
+        id: entityId,
+        position: Cartesian3.fromDegrees(flight.longitude, flight.latitude, flight.altitude),
+        point: {
+          pixelSize: 4,
+          color: hexToColor("#00FFFF", 0.9),
+          outlineColor: hexToColor("#FFFFFF", 0.5),
+          outlineWidth: 1,
+          scaleByDistance: new NearFarScalar(1e6, 1.5, 1e8, 0.3),
+          disableDepthTestDistance: Number.POSITIVE_INFINITY,
+        },
+        label: {
+          text: `${flight.callsign}`,
+          font: "8px monospace",
+          fillColor: hexToColor("#00FFFF", 0.8),
+          outlineColor: Color.BLACK,
+          outlineWidth: 1,
+          style: 2,
+          verticalOrigin: VerticalOrigin.BOTTOM,
+          horizontalOrigin: HorizontalOrigin.CENTER,
+          pixelOffset: new Cartesian2(0, -8),
+          scaleByDistance: new NearFarScalar(1e5, 0.8, 5e6, 0.1),
+          disableDepthTestDistance: Number.POSITIVE_INFINITY,
+        },
+      });
+      flightEntityIdsRef.current.push(entityId);
+    });
+  }, [flights, envLayers]);
+
+  // Marine Traffic layer — ship markers from VesselFinder
+  useEffect(() => {
+    const viewer = viewerRef.current;
+    if (!viewer || viewer.isDestroyed()) return;
+
+    const active = envLayers ?? new Set<EnvLayerKey>();
+    if (!active.has("marineTraffic")) {
+      // Clean up if layer disabled
+      shipEntityIdsRef.current.forEach(id => {
+        const e = viewer.entities.getById(id);
+        if (e) viewer.entities.remove(e);
+      });
+      shipEntityIdsRef.current = [];
+      return;
+    }
+
+    // Remove old entities
+    shipEntityIdsRef.current.forEach(id => {
+      const e = viewer.entities.getById(id);
+      if (e) viewer.entities.remove(e);
+    });
+    shipEntityIdsRef.current = [];
+
+    // Add ship markers
+    ships.forEach((ship, i) => {
+      if (!ship.latitude || !ship.longitude) return;
+      
+      const entityId = `ship-${i}`;
+      viewer.entities.add({
+        id: entityId,
+        position: Cartesian3.fromDegrees(ship.longitude, ship.latitude, 0),
+        point: {
+          pixelSize: 6,
+          color: hexToColor("#38BDF8", 0.9),
+          outlineColor: hexToColor("#FFFFFF", 0.5),
+          outlineWidth: 1,
+          scaleByDistance: new NearFarScalar(1e6, 1.5, 1e8, 0.3),
+          disableDepthTestDistance: Number.POSITIVE_INFINITY,
+        },
+        label: {
+          text: `${ship.name || ship.type}`,
+          font: "8px monospace",
+          fillColor: hexToColor("#38BDF8", 0.8),
+          outlineColor: Color.BLACK,
+          outlineWidth: 1,
+          style: 2,
+          verticalOrigin: VerticalOrigin.BOTTOM,
+          horizontalOrigin: HorizontalOrigin.CENTER,
+          pixelOffset: new Cartesian2(0, -8),
+          scaleByDistance: new NearFarScalar(1e5, 0.8, 5e6, 0.1),
+          disableDepthTestDistance: Number.POSITIVE_INFINITY,
+        },
+      });
+      shipEntityIdsRef.current.push(entityId);
+    });
+  }, [ships, envLayers]);
 
   return (
     <div ref={containerRef} className="w-full h-full" style={{ background: "#000000" }} />
