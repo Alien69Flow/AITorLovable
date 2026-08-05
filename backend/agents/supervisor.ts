@@ -17,7 +17,29 @@ CATEGORÍAS DISPONIBLES:
 1. "RAG_PHYSICS": Si el mensaje habla de Nikola Tesla, neutrinos, factor 16.18, gravedad, frecuencias o física unificada.
 2. "MARKET_DAO": Si el mensaje habla de liquidez, AlienFlowSpace DAO, tokens, o mercados DeFi.
 3. "TASK_MANUS": Si el usuario pide automatizar algo, ejecutar código, o buscar información externa.
-4. "CHAT_GENERAL": Para saludos, soporte general o cualquier otra cosa.
+4. "SOCIAL_MEDIA": Si el usuario pide generar contenido para redes sociales, crear posts, gestionar redes sociales, calendarios de contenido, propuestas de posts.
+5. "SECURITY_SCAN": Si el usuario pide escanear seguridad, revisar vulnerabilidades, auditar código, checking dependencies.
+6. "CHAT_GENERAL": Para saludos, soporte general o cualquier otra cosa.
+
+INTENTS DE REDES SOCIALES:
+- "genera posts para Twitter"
+- "crea contenido para LinkedIn"
+- "propuesta semanal de redes sociales"
+- "calendario de contenido mensual"
+- "publicar en Instagram"
+- "gestionar redes sociales"
+- "crear thread"
+- "estrategia de contenido"
+- "post para Facebook"
+- "actualizar Discord"
+
+INTENTS DE SEGURIDAD:
+- "escaneo de seguridad"
+- "revisar vulnerabilidades"
+- "npm audit"
+- "verificar dependencias"
+- "auditoría de seguridad"
+- "GitHub advisories"
 
 Mensaje del usuario: {input}
 
