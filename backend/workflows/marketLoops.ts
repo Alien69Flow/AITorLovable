@@ -1,0 +1,289 @@
+/**
+ * 📈 Market Automation Loops
+ * Loops automatizados para monitoreo de mercado
+ */
+
+import { MarketAnalyzer, PriceData } from "../agents/marketAnalyzer";
+import { TradingSignals, PriceAlert } from "../agents/tradingSignals";
+import { PortfolioManager } from "../agents/portfolioManager";
+
+export interface PriceAlertConfig {
+  symbol: string;
+  condition: 'above' | 'below' | 'crosses';
+  price: number;
+  message: string;
+  notifyTelegram?: boolean;
+  notifyEmail?: boolean;
+}
+
+export interface WhaleAlert {
+  address: string;
+  symbol: string;
+  amount: number;
+  usdValue: number;
+  type: 'buy' | 'sell' | 'transfer';
+  timestamp: Date;
+}
+
+export interface TVLData {
+  protocol: string;
+  tvl: number;
+  change24h: number;
+  category: string;
+}
+
+class MarketLoopStore {
+  private static alerts: Map<string, PriceAlertConfig> = new Map();
+  private static whaleAlerts: WhaleAlert[] = [];
+  private static tvlData: Map<string, TVLData> = new Map();
+  private static lastPrices: Map<string, number> = new Map();
+
+  static addPriceAlert(config: PriceAlertConfig): void {
+    this.alerts.set(`${config.symbol}_${config.condition}_${config.price}`, config);
+  }
+
+  static removePriceAlert(key: string): boolean {
+    return this.alerts.delete(key);
+  }
+
+  static getPriceAlerts(): PriceAlertConfig[] {
+    return Array.from(this.alerts.values());
+  }
+
+  static getAlertsForSymbol(symbol: string): PriceAlertConfig[] {
+    return Array.from(this.alerts.values()).filter(a => a.symbol === symbol);
+  }
+
+  static addWhaleAlert(alert: WhaleAlert): void {
+    this.whaleAlerts.unshift(alert);
+    if (this.whaleAlerts.length > 100) {
+      this.whaleAlerts.pop();
+    }
+  }
+
+  static getWhaleAlerts(limit: number = 20): WhaleAlert[] {
+    return this.whaleAlerts.slice(0, limit);
+  }
+
+  static setTVL(protocol: string, data: TVLData): void {
+    this.tvlData.set(protocol, data);
+  }
+
+  static getTVL(protocol?: string): TVLData | TVLData[] {
+    if (protocol) {
+      return this.tvlData.get(protocol) as TVLData;
+    }
+    return Array.from(this.tvlData.values());
+  }
+
+  static updateLastPrice(symbol: string, price: number): void {
+    this.lastPrices.set(symbol, price);
+  }
+
+  static getLastPrice(symbol: string): number | undefined {
+    return this.lastPrices.get(symbol);
+  }
+}
+
+export class MarketLoops {
+  private static priceCheckInterval: NodeJS.Timeout | null = null;
+  private static tvlInterval: NodeJS.Timeout | null = null;
+  private static whaleInterval: NodeJS.Timeout | null = null;
+
+  /**
+   * Configura una alerta de precio
+   */
+  static setPriceAlert(config: PriceAlertConfig): PriceAlert {
+    MarketLoopStore.addPriceAlert(config);
+    
+    return TradingSignals.createPriceAlert(
+      config.symbol,
+      config.condition,
+      config.price,
+      config.message
+    );
+  }
+
+  /**
+   * Remueve una alerta de precio
+   */
+  static removePriceAlert(symbol: string, condition: string, price: number): boolean {
+    const key = `${symbol}_${condition}_${price}`;
+    return MarketLoopStore.removePriceAlert(key);
+  }
+
+  /**
+   * Inicia el loop de monitoreo de precios
+   */
+  static startPriceMonitoring(
+    prices: PriceData[],
+    onAlert?: (alert: PriceAlert) => void,
+    intervalMs: number = 60000
+  ): void {
+    if (this.priceCheckInterval) {
+      clearInterval(this.priceCheckInterval);
+    }
+
+    // Update last prices
+    prices.forEach(p => {
+      MarketLoopStore.updateLastPrice(p.symbol, p.price);
+    });
+
+    this.priceCheckInterval = setInterval(() => {
+      const alerts = TradingSignals.checkPriceAlerts(MarketLoopStore['lastPrices']);
+      
+      if (alerts.length > 0 && onAlert) {
+        alerts.forEach(alert => onAlert(alert));
+      }
+    }, intervalMs);
+  }
+
+  /**
+   * Detiene el monitoreo de precios
+   */
+  static stopPriceMonitoring(): void {
+    if (this.priceCheckInterval) {
+      clearInterval(this.priceCheckInterval);
+      this.priceCheckInterval = null;
+    }
+  }
+
+  /**
+   * Inicia el loop de tracking de TVL
+   */
+  static startTVLTracking(
+    protocols: string[],
+    onUpdate?: (data: TVLData[]) => void,
+    intervalMs: number = 300000
+  ): void {
+    if (this.tvlInterval) {
+      clearInterval(this.tvlInterval);
+    }
+
+    const fetchTVL = async () => {
+      // Mock TVL data - in production, fetch from DeFiLlama or similar
+      const tvlData: TVLData[] = protocols.map(protocol => ({
+        protocol,
+        tvl: Math.random() * 1000000000,
+        change24h: (Math.random() - 0.5) * 20,
+        category: 'DeFi',
+      }));
+
+      tvlData.forEach(d => MarketLoopStore.setTVL(d.protocol, d));
+
+      if (onUpdate) {
+        onUpdate(tvlData);
+      }
+    };
+
+    fetchTVL();
+    this.tvlInterval = setInterval(fetchTVL, intervalMs);
+  }
+
+  /**
+   * Detiene el tracking de TVL
+   */
+  static stopTVLTracking(): void {
+    if (this.tvlInterval) {
+      clearInterval(this.tvlInterval);
+      this.tvlInterval = null;
+    }
+  }
+
+  /**
+   * Añade una alerta de whale
+   */
+  static addWhaleAlert(alert: Omit<WhaleAlert, 'timestamp'>): void {
+    MarketLoopStore.addWhaleAlert({
+      ...alert,
+      timestamp: new Date(),
+    });
+  }
+
+  /**
+   * Obtiene alertas de whales recientes
+   */
+  static getWhaleAlerts(limit?: number): WhaleAlert[] {
+    return MarketLoopStore.getWhaleAlerts(limit);
+  }
+
+  /**
+   * Detecta movimientos grandes (> $1M)
+   */
+  static detectLargeMovements(prices: Map<string, number>): WhaleAlert[] {
+    const largeMovements: WhaleAlert[] = [];
+    
+    // Mock detection - in production, track on-chain transactions
+    const symbols = Array.from(prices.keys());
+    
+    if (Math.random() > 0.9) { // 10% chance of large movement
+      const symbol = symbols[Math.floor(Math.random() * symbols.length)];
+      const price = prices.get(symbol) || 0;
+      const amount = 10 + Math.random() * 100;
+      const usdValue = amount * price;
+
+      if (usdValue > 1000000) {
+        const alert: WhaleAlert = {
+          address: `0x${Math.random().toString(16).substr(2, 40)}`,
+          symbol,
+          amount,
+          usdValue,
+          type: Math.random() > 0.5 ? 'buy' : 'sell',
+          timestamp: new Date(),
+        };
+
+        MarketLoopStore.addWhaleAlert(alert);
+        largeMovements.push(alert);
+      }
+    }
+
+    return largeMovements;
+  }
+
+  /**
+   * Genera reporte de monitoreo
+   */
+  static generateMonitoringReport(): string {
+    const alerts = MarketLoopStore.getPriceAlerts();
+    const whaleAlerts = MarketLoopStore.getWhaleAlerts(10);
+    const tvlData = MarketLoopStore.getTVL() as TVLData[];
+
+    let report = `📊 **REPORTE DE MONITOREO DE MERCADO**
+
+**ALERTAS DE PRECIO CONFIGURADAS:** ${alerts.length}\n`;
+
+    if (alerts.length > 0) {
+      alerts.slice(0, 5).forEach(a => {
+        report += `• ${a.symbol} ${a.condition} $${a.price}\n`;
+      });
+    }
+
+    report += `\n**WHALE ALERTS (últimas 24h):** ${whaleAlerts.length}\n`;
+    
+    if (whaleAlerts.length > 0) {
+      whaleAlerts.slice(0, 3).forEach(w => {
+        const emoji = w.type === 'buy' ? '🟢' : w.type === 'sell' ? '🔴' : '⚪';
+        report += `${emoji} ${w.symbol}: $${(w.usdValue / 1e6).toFixed(2)}M ${w.type}\n`;
+      });
+    }
+
+    report += `\n**TVL PROTOCOLS MONITOREADOS:** ${tvlData.length}\n`;
+
+    if (tvlData.length > 0) {
+      const sorted = [...tvlData].sort((a, b) => b.tvl - a.tvl).slice(0, 5);
+      sorted.forEach(t => {
+        report += `• ${t.protocol}: $${(t.tvl / 1e9).toFixed(2)}B (${t.change24h >= 0 ? '+' : ''}${t.change24h.toFixed(1)}%)\n`;
+      });
+    }
+
+    return report;
+  }
+
+  /**
+   * Detiene todos los loops
+   */
+  static stopAll(): void {
+    this.stopPriceMonitoring();
+    this.stopTVLTracking();
+  }
+}

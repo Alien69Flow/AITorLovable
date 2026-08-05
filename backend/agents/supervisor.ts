@@ -19,27 +19,39 @@ CATEGORÍAS DISPONIBLES:
 3. "TASK_MANUS": Si el usuario pide automatizar algo, ejecutar código, o buscar información externa.
 4. "SOCIAL_MEDIA": Si el usuario pide generar contenido para redes sociales, crear posts, gestionar redes sociales, calendarios de contenido, propuestas de posts.
 5. "SECURITY_SCAN": Si el usuario pide escanear seguridad, revisar vulnerabilidades, auditar código, checking dependencies.
-6. "CHAT_GENERAL": Para saludos, soporte general o cualquier otra cosa.
+6. "MARKET_ANALYSIS": Si el usuario pide analizar precios crypto, ver análisis técnico, métricas de mercado, análisis de tokens.
+7. "TRADING_SIGNALS": Si el usuario pide señales de trading, alertas de precio, recomendaciones de compra/venta.
+8. "PORTFOLIO": Si el usuario pregunta por su portfolio, activos, P&L, rebalanceo, asignación.
+9. "CHAT_GENERAL": Para saludos, soporte general o cualquier otra cosa.
 
 INTENTS DE REDES SOCIALES:
 - "genera posts para Twitter"
 - "crea contenido para LinkedIn"
 - "propuesta semanal de redes sociales"
 - "calendario de contenido mensual"
-- "publicar en Instagram"
-- "gestionar redes sociales"
-- "crear thread"
-- "estrategia de contenido"
-- "post para Facebook"
-- "actualizar Discord"
 
 INTENTS DE SEGURIDAD:
 - "escaneo de seguridad"
-- "revisar vulnerabilidades"
 - "npm audit"
-- "verificar dependencias"
 - "auditoría de seguridad"
-- "GitHub advisories"
+
+INTENTS DE MERCADO:
+- "analiza BTC" o "qué pasa con Ethereum"
+- "análisis técnico"
+- "métricas de mercado"
+- "mejores tokens DeFi"
+
+INTENTS DE TRADING:
+- "señales de trading"
+- "alerta de precio para BTC"
+- "cuando comprar"
+- "recomendación de trading"
+
+INTENTS DE PORTFOLIO:
+- "mi portfolio"
+- "cuánto gano"
+- "rebalancear"
+- "asignación de tokens"
 
 Mensaje del usuario: {input}
 

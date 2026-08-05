@@ -73,8 +73,25 @@ export class SwarmOrchestrator {
 
       case "SECURITY_SCAN": {
         // Routing al Security Agent
-        const { SecurityAgent } = await import('./securityAgent');
         finalResponse = await this.handleSecurityRequest(userInput);
+        break;
+      }
+
+      case "MARKET_ANALYSIS": {
+        // Routing al Market Analyzer
+        finalResponse = await this.handleMarketRequest(userInput);
+        break;
+      }
+
+      case "TRADING_SIGNALS": {
+        // Routing al Trading Signals Agent
+        finalResponse = await this.handleTradingRequest(userInput);
+        break;
+      }
+
+      case "PORTFOLIO": {
+        // Routing al Portfolio Manager
+        finalResponse = await this.handlePortfolioRequest(userInput);
         break;
       }
 
@@ -206,5 +223,181 @@ export class SwarmOrchestrator {
     // Por defecto, escaneo rápido
     const report = await SecurityAgent.quickScan();
     return SecurityAgent.formatReport(report);
+  }
+
+  /**
+   * Maneja requests de análisis de mercado
+   */
+  private static async handleMarketRequest(userInput: string): Promise<string> {
+    const { MarketAnalyzer } = await import('./marketAnalyzer');
+    const { MarketKnowledge } = await import('../rag/marketKnowledge');
+    const input = userInput.toLowerCase();
+
+    // Extraer símbolos mencionados
+    const symbols: string[] = [];
+    if (input.includes('btc') || input.includes('bitcoin')) symbols.push('BTC');
+    if (input.includes('eth') || input.includes('ethereum')) symbols.push('ETH');
+    if (input.includes('sol') || input.includes('solana')) symbols.push('SOL');
+    if (input.includes('bnb')) symbols.push('BNB');
+
+    if (symbols.length > 0) {
+      // Generar mock price data para demo
+      const prices = symbols.map(s => ({
+        symbol: s,
+        price: s === 'BTC' ? 64000 : s === 'ETH' ? 3400 : s === 'SOL' ? 140 : 580,
+        change24h: (Math.random() - 0.5) * 10,
+        marketCap: Math.random() * 100000000000,
+      }));
+
+      const analyses = await MarketAnalyzer.analyzePortfolio(prices);
+      let response = `📊 **ANÁLISIS DE MERCADO**\n\n`;
+
+      for (const analysis of analyses) {
+        const emoji = analysis.technical.trend === 'bullish' ? '🟢' : analysis.technical.trend === 'bearish' ? '🔴' : '⚪';
+        response += `${emoji} **${analysis.symbol}** - ${analysis.technical.trend}\n`;
+        response += `   Precio: $${analysis.price.price.toLocaleString()}\n`;
+        response += `   Cambio 24h: ${analysis.price.change24h >= 0 ? '+' : ''}${analysis.price.change24h.toFixed(2)}%\n`;
+        response += `   Soporte: $${analysis.technical.support.toLocaleString()}\n`;
+        response += `   Resistencia: $${analysis.technical.resistance.toLocaleString()}\n`;
+        response += `   Recomendación: ${analysis.recommendation.toUpperCase()}\n\n`;
+      }
+
+      return response;
+    }
+
+    // Análisis general de mercado
+    return await MarketKnowledge.retrieveContext('marketSentiment' as any);
+  }
+
+  /**
+   * Maneja requests de señales de trading
+   */
+  private static async handleTradingRequest(userInput: string): Promise<string> {
+    const { TradingSignals } = await import('./tradingSignals');
+    const { MarketKnowledge } = await import('../rag/marketKnowledge');
+    const input = userInput.toLowerCase();
+
+    // Configurar alerta de precio
+    if (input.includes('alerta') && input.includes('precio')) {
+      const symbols: string[] = [];
+      if (input.includes('btc')) symbols.push('BTC');
+      if (input.includes('eth')) symbols.push('ETH');
+      
+      const condition = input.includes('sobre') ? 'above' : input.includes('bajo') ? 'below' : 'crosses';
+      
+      // Extraer número del mensaje
+      const priceMatch = userInput.match(/\$?([\d,]+)/);
+      const price = priceMatch ? parseFloat(priceMatch[1].replace(',', '')) : 0;
+
+      if (symbols.length > 0 && price > 0) {
+        const alert = TradingSignals.createPriceAlert(
+          symbols[0],
+          condition as any,
+          price,
+          `Alerta ${condition} $${price}`
+        );
+        return `✅ **ALERTA CONFIGURADA**\n\nSímbolo: ${alert.symbol}\nCondición: ${alert.condition} $${alert.price}\nID: ${alert.id}`;
+      }
+    }
+
+    // Mostrar señales activas
+    if (input.includes('ver señales') || input.includes('señales activas')) {
+      return TradingSignals.formatSignalsReport();
+    }
+
+    // Checklist de trading
+    if (input.includes('checklist') || input.includes('antes de operar')) {
+      return MarketKnowledge.getAnalysisChecklist();
+    }
+
+    return `📈 **SEÑALES DE TRADING**
+
+Opciones disponibles:
+• "alerta de precio BTC sobre $65000"
+• "ver señales activas"
+• "checklist antes de operar"
+
+${MarketKnowledge.getAnalysisChecklist()}`;
+  }
+
+  /**
+   * Maneja requests de portfolio
+   */
+  private static async handlePortfolioRequest(userInput: string): Promise<string> {
+    const { PortfolioManager } = await import('./portfolioManager');
+    const input = userInput.toLowerCase();
+
+    // Mock prices
+    const prices = new Map<string, number>();
+    prices.set('BTC', 64000);
+    prices.set('ETH', 3400);
+    prices.set('SOL', 140);
+    prices.set('LINK', 18);
+
+    if (input.includes('mi portfolio') || input.includes('mis activos')) {
+      const assets = PortfolioManager.getAssets();
+      
+      if (assets.length === 0) {
+        return `💼 **TU PORFOLIO**
+
+No tienes activos configurados.
+
+Comandos disponibles:
+• "añadir BTC 0.5 a $60000" - Añadir activo
+• "mi portfolio" - Ver portfolio
+• "añadir a portfolio" - Help
+• "rebalancear" - Recomendaciones`;
+      }
+
+      return PortfolioManager.formatPortfolioReport(prices);
+    }
+
+    // Añadir activo
+    if (input.includes('añadir') || input.includes('agregar')) {
+      const symbolMatch = userInput.match(/(BTC|ETH|SOL|LINK|BNB|DOT|ADA)/i);
+      const amountMatch = userInput.match(/([\d.]+)/);
+      
+      if (symbolMatch && amountMatch) {
+        const symbol = symbolMatch[1].toUpperCase();
+        const amount = parseFloat(amountMatch[1]);
+        const price = prices.get(symbol) || 0;
+
+        PortfolioManager.addAsset(symbol, symbol, amount, price);
+        
+        return `✅ **ACTIVO AÑADIDO**\n\nSímbolo: ${symbol}\nCantidad: ${amount}\nPrecio promedio: $${price.toLocaleString()}\n\nTotal en ${symbol}: $${(amount * price).toLocaleString()}`;
+      }
+    }
+
+    // Rebalancear
+    if (input.includes('rebalancear')) {
+      const targetAllocation = {
+        BTC: 40,
+        ETH: 30,
+        SOL: 15,
+        LINK: 15,
+      };
+
+      const recommendations = PortfolioManager.suggestRebalance(targetAllocation, prices);
+      
+      let response = `🔄 **RECOMENDACIONES DE REBALANCEO**\n\n`;
+      
+      if (recommendations.length === 0) {
+        response += `Tu portfolio ya está balanceado correctamente.`;
+      } else {
+        recommendations.forEach(r => {
+          response += `${r.from} → ${r.to}: $${r.amount.toFixed(2)}\n`;
+          response += `   ${r.reason}\n\n`;
+        });
+      }
+
+      return response;
+    }
+
+    return `💼 **GESTIÓN DE PORFOLIO**
+
+Comandos disponibles:
+• "mi portfolio" - Ver activos
+• "añadir BTC 0.5" - Añadir activo
+• "rebalancear" - Recomendaciones de distribución`;
   }
 }
