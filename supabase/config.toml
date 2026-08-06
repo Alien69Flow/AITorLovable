@@ -29,3 +29,15 @@ verify_jwt = false
 
 [functions.openweather]
 verify_jwt = false
+
+[functions.air-traffic]
+verify_jwt = false
+
+[functions.marine-traffic]
+verify_jwt = false
+
+[functions.weather-grid]
+verify_jwt = false
+
+[functions.noaa-space-weather]
+verify_jwt = false
