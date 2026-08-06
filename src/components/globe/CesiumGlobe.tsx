@@ -254,14 +254,19 @@ export function CesiumGlobe({
     const viewer = viewerRef.current;
     if (!viewer || viewer.isDestroyed()) return;
     const active = envLayers ?? new Set<EnvLayerKey>();
+    
+    console.log("[CesiumGlobe] envLayers changed:", Array.from(active));
 
     GLOBE_LAYERS.filter((l) => l.owm).forEach((def) => {
       const id = def.owm as string;
       const existing = owmLayersRef.current[id];
       const shouldShow = active.has(def.key);
+      const alpha = OWM_ALPHA[id] ?? 0.7;
 
       if (shouldShow && !existing) {
+        // Add new layer
         try {
+          console.log(`[CesiumGlobe] Adding OWM layer: ${id}, URL: ${OWM_TILE_URL(id)}`);
           const imageryProvider = new UrlTemplateImageryProvider({
             url: OWM_TILE_URL(id),
             maximumLevel: 10,
@@ -270,23 +275,28 @@ export function CesiumGlobe({
           });
           
           const layer = viewer.imageryLayers.addImageryProvider(imageryProvider);
-          // Higher alpha for better visibility
-          layer.alpha = OWM_ALPHA[id] ?? 0.7;
+          layer.alpha = alpha;
           // Add above base imagery
           const baseCount = viewer.imageryLayers.length;
           viewer.imageryLayers.move(layer, Math.max(1, baseCount - 2));
           
           owmLayersRef.current[id] = layer;
-          console.log(`[CesiumGlobe] OWM layer added: ${id}, alpha: ${OWM_ALPHA[id] ?? 0.7}`);
+          console.log(`[CesiumGlobe] OWM layer ADDED: ${id}, alpha: ${alpha}, total layers: ${viewer.imageryLayers.length}`);
         } catch (e) {
-          console.warn("OWM layer failed:", id, e);
+          console.error("[CesiumGlobe] OWM layer add FAILED:", id, e);
         }
-      } else if (!shouldShow && existing) {
-        try { 
-          viewer.imageryLayers.remove(existing, true);
-          console.log(`[CesiumGlobe] OWM layer removed: ${id}`);
-        } catch { /* noop */ }
-        delete owmLayersRef.current[id];
+      } else if (existing) {
+        // Update visibility of existing layer
+        try {
+          existing.show = shouldShow;
+          existing.alpha = shouldShow ? alpha : 0;
+          console.log(`[CesiumGlobe] OWM layer ${shouldShow ? 'SHOWN' : 'HIDDEN'}: ${id}, alpha: ${existing.alpha}`);
+        } catch (e) {
+          console.error("[CesiumGlobe] OWM layer toggle FAILED:", id, e);
+        }
+      } else if (!shouldShow && !existing) {
+        // Layer not needed and not created yet - do nothing
+        console.log(`[CesiumGlobe] OWM layer not needed: ${id}`);
       }
     });
 
