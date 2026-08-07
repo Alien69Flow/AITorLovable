@@ -8,6 +8,7 @@ import { LegendPanel, type LayerKey } from "./LegendPanel";
 import { NavigatePanel } from "./NavigatePanel";
 import { ChatFeedPanel } from "./ChatFeedPanel";
 import { PricingModal } from "./PricingModal";
+import { GlobeDiagnostics } from "./GlobeDiagnostics";
 import { useUnifiedIntel } from "@/hooks/useUnifiedIntel";
 import { useUAPSightings } from "@/hooks/useUAPSightings";
 import { useTier } from "@/hooks/useTier";
@@ -19,10 +20,10 @@ import {
   layerDef,
   type EnvLayerKey,
 } from "@/lib/globe-layers";
-import { Cpu, Wifi, CircleCheck as CheckCircle2, Crosshair, Compass, Layers } from "lucide-react";
+import { Cpu, Wifi, CircleCheck as CheckCircle2, Crosshair, Compass, Layers, Wrench } from "lucide-react";
 import { LedIndicator } from "./GlassPanels";
 
-type MobilePanel = "tension" | "legend" | "navigate" | null;
+type MobilePanel = "tension" | "legend" | "navigate" | "diagnostics" | null;
 
 export function GlobeDashboard() {
   const [selectedHotspot, setSelectedHotspot] = useState<UnifiedHotspotData | null>(null);
@@ -158,6 +159,7 @@ export function GlobeDashboard() {
               { id: "tension" as const, Icon: Crosshair, label: "Tension console" },
               { id: "legend" as const, Icon: Layers, label: "Legend and layers" },
               { id: "navigate" as const, Icon: Compass, label: "Navigate" },
+              { id: "diagnostics" as const, Icon: Wrench, label: "Diagnostics" },
             ]).map(({ id, Icon, label }) => (
               <button
                 key={id}
@@ -186,6 +188,9 @@ export function GlobeDashboard() {
                 {mobilePanel === "navigate" && (
                   <NavigatePanel onNavigate={handleNavigate} forceOpen onClose={() => setMobilePanel(null)} />
                 )}
+                {mobilePanel === "diagnostics" && (
+                  <GlobeDiagnostics />
+                )}
               </div>
             </>
           )}
@@ -196,6 +201,20 @@ export function GlobeDashboard() {
           <div className="pointer-events-auto"><TacticalConsole /></div>
           <div className="pointer-events-auto">{legend()}</div>
           <div className="pointer-events-auto"><NavigatePanel onNavigate={handleNavigate} /></div>
+          <button
+            onClick={() => setMobilePanel(mobilePanel === "diagnostics" ? null : "diagnostics")}
+            className={`pointer-events-auto flex items-center gap-2 px-3 py-2 rounded-xl backdrop-blur-2xl border transition-all text-xs ${
+              mobilePanel === "diagnostics"
+                ? "bg-slate-800/70 border-cyan-400/50"
+                : "bg-slate-950/80 border-slate-700/40 hover:border-slate-600"
+            }`}
+          >
+            <Wrench className="w-4 h-4 text-cyan-400" />
+            <span className="text-slate-300">Diagnostics</span>
+          </button>
+          {mobilePanel === "diagnostics" && (
+            <div className="pointer-events-auto"><GlobeDiagnostics /></div>
+          )}
         </div>
 
         {/* RIGHT PANEL: Chat Feed (desktop only) */}
