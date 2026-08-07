@@ -42,11 +42,11 @@ const OWM_TILE_URL = (layerId: string) =>
   `${SUPABASE_URL}/functions/v1/openweather?tile=${layerId}&z={z}&x={x}&y={y}`;
 
 const OWM_ALPHA: Record<string, number> = {
-  clouds_new: 0.65,
-  precipitation_new: 0.75,
-  pressure_new: 0.6,
-  wind_new: 0.55,
-  temp_new: 0.55,
+  clouds_new: 0.75,
+  precipitation_new: 0.8,
+  pressure_new: 0.7,
+  wind_new: 0.65,
+  temp_new: 0.7,
 };
 
 // The Cesium Ion token is never shipped to the browser bundle; it is fetched
