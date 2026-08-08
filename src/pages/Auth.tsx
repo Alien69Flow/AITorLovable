@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -24,12 +24,20 @@ export default function Auth() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const { signIn, signUp, signInWithGoogle, signInWithApple, user, loading } = useAuth();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const rawNext = searchParams.get("next") ?? "";
+  const nextPath = /^\/(?!\/)/.test(rawNext) ? rawNext : "/";
+  const nextUrl = window.location.origin + nextPath;
 
   useEffect(() => {
     if (!loading && user) {
-      navigate("/", { replace: true });
+      if (nextPath.startsWith("/.lovable/")) {
+        window.location.replace(nextUrl);
+      } else {
+        navigate(nextPath, { replace: true });
+      }
     }
-  }, [user, loading, navigate]);
+  }, [user, loading, navigate, nextPath, nextUrl]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -50,7 +58,7 @@ export default function Auth() {
           toast.success("¡Bienvenido, Soberano!");
         }
       } else {
-        const { error } = await signUp(email, password);
+        const { error } = await signUp(email, password, nextUrl);
         if (error) {
           toast.error(error.message.includes("already registered") 
             ? "Este email ya está registrado" 
@@ -68,7 +76,7 @@ export default function Auth() {
     setIsSubmitting(true);
     try {
       const fn = provider === "google" ? signInWithGoogle : signInWithApple;
-      const { error } = await fn();
+      const { error } = await fn(nextUrl);
       if (error) toast.error(error.message || `Error con ${provider}`);
     } finally {
       setIsSubmitting(false);
