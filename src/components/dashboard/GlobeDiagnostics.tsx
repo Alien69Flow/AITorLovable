@@ -1,5 +1,11 @@
 import { useState, useEffect } from "react";
-import { supabase } from "@/integrations/supabase/client";
+const SUPABASE_URL =
+  (import.meta.env.VITE_SUPABASE_URL as string) ||
+  "https://wkdtvrxavkhbifjtvvdw.supabase.co";
+const SUPABASE_KEY =
+  (import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY as string) ||
+  (import.meta.env.VITE_SUPABASE_ANON_KEY as string) ||
+  "";
 
 interface Diagnostics {
   owmKeyConfigured: boolean | null;
@@ -32,10 +38,10 @@ export function GlobeDiagnostics() {
     // Test OpenWeatherMap tile
     try {
       const tileRes = await fetch(
-        `${supabase.supabaseUrl}/functions/v1/openweather?tile=clouds_new&z=4&x=8&y=5`,
+        `${SUPABASE_URL}/functions/v1/openweather?tile=clouds_new&z=4&x=8&y=5`,
         {
           headers: {
-            apikey: supabase.supabaseKey,
+            apikey: SUPABASE_KEY,
           },
         }
       );
@@ -54,10 +60,10 @@ export function GlobeDiagnostics() {
     // Test OpenWeatherMap lat/lon
     try {
       const weatherRes = await fetch(
-        `${supabase.supabaseUrl}/functions/v1/openweather?lat=41.6&lon=-0.9`,
+        `${SUPABASE_URL}/functions/v1/openweather?lat=41.6&lon=-0.9`,
         {
           headers: {
-            apikey: supabase.supabaseKey,
+            apikey: SUPABASE_KEY,
           },
         }
       );
@@ -77,10 +83,10 @@ export function GlobeDiagnostics() {
     // Test Air Traffic
     try {
       const airRes = await fetch(
-        `${supabase.supabaseUrl}/functions/v1/air-traffic`,
+        `${SUPABASE_URL}/functions/v1/air-traffic`,
         {
           headers: {
-            apikey: supabase.supabaseKey,
+            apikey: SUPABASE_KEY,
           },
         }
       );
@@ -95,10 +101,10 @@ export function GlobeDiagnostics() {
     // Test Marine Traffic
     try {
       const marineRes = await fetch(
-        `${supabase.supabaseUrl}/functions/v1/marine-traffic`,
+        `${SUPABASE_URL}/functions/v1/marine-traffic`,
         {
           headers: {
-            apikey: supabase.supabaseKey,
+            apikey: SUPABASE_KEY,
           },
         }
       );
