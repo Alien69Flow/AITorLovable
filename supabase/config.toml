@@ -41,3 +41,6 @@ verify_jwt = false
 
 [functions.noaa-space-weather]
 verify_jwt = false
+
+[functions.shodan-osint]
+verify_jwt = false
