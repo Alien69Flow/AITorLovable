@@ -101,6 +101,12 @@ export default function Auth() {
       <Helmet>
         <title>{isLogin ? "Iniciar Sesión" : "Registrarse"} | Ai Tor</title>
         <meta name="description" content="Accede a Ai Tor — Terminal de Inteligencia Autónoma de ΔlieπFlΦw DAO" />
+        <link rel="canonical" href="https://aitor.lovable.app/auth" />
+        <meta property="og:title" content={`${isLogin ? "Iniciar Sesión" : "Registrarse"} | Ai Tor`} />
+        <meta property="og:description" content="Accede a Ai Tor — Terminal de Inteligencia Autónoma de ΔlieπFlΦw DAO" />
+        <meta property="og:url" content="https://aitor.lovable.app/auth" />
+        <meta name="twitter:title" content={`${isLogin ? "Iniciar Sesión" : "Registrarse"} | Ai Tor`} />
+        <meta name="twitter:description" content="Accede a Ai Tor — Terminal de Inteligencia Autónoma de ΔlieπFlΦw DAO" />
       </Helmet>
       <SpaceBackground />
 
