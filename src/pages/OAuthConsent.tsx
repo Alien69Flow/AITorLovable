@@ -4,6 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { SpaceBackground } from "@/components/SpaceBackground";
 import { Loader2, ShieldCheck } from "lucide-react";
+import { Helmet } from "react-helmet-async";
 
 type OAuthApi = {
   getAuthorizationDetails: (id: string) => Promise<{ data: any; error: any }>;
@@ -81,6 +82,13 @@ export default function OAuthConsent() {
 
   return (
     <>
+      <Helmet>
+        <title>Autorizar aplicación | Ai Tor</title>
+        <meta name="description" content="Pantalla de consentimiento OAuth de Ai Tor: revisa los permisos solicitados antes de conectar una aplicación externa a tu cuenta." />
+        <meta name="robots" content="noindex" />
+        <meta property="og:title" content="Autorizar aplicación | Ai Tor" />
+        <meta property="og:description" content="Revisa los permisos solicitados antes de conectar una aplicación externa a tu cuenta de Ai Tor." />
+      </Helmet>
       <SpaceBackground />
       <main className="relative flex min-h-screen items-center justify-center p-4">
         <div className="w-full max-w-md rounded-2xl border border-primary/20 bg-card/80 p-8 backdrop-blur-xl">

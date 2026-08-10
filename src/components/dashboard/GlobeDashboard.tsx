@@ -102,6 +102,7 @@ export function GlobeDashboard() {
 
   return (
     <div className="flex flex-col flex-1 min-h-0 relative bg-black overflow-hidden">
+      <h2 className="sr-only">Globo táctico en tiempo real: capas meteorológicas, OSINT y mercados</h2>
       {/* Primary crypto / market ticker */}
       <div className="flex items-center gap-3 md:gap-5 px-2 md:px-4 py-1.5 md:py-2 border-b border-slate-700/30 overflow-x-auto backdrop-blur-2xl bg-slate-950/70 no-scrollbar z-20">
         <div className="flex items-center gap-1.5 md:gap-2 shrink-0">

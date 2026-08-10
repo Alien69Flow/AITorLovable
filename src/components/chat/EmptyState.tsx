@@ -121,6 +121,7 @@ export function EmptyState({ onPromptClick }: EmptyStateProps) {
         <div className="text-center">
           <h1 className={`font-heading font-bold text-foreground tracking-wider neon-text-green ${isCompact ? "text-2xl" : "text-4xl sm:text-5xl"}`}>
             AI Tor
+            <span className="sr-only"> — Real-Time Intelligence Terminal</span>
           </h1>
           <p className={`text-muted-foreground/70 mt-1.5 max-w-md font-mono leading-relaxed ${isCompact ? "text-[11px]" : "text-sm sm:text-base mt-2"}`}>
             <TypingTagline text={isCompact ? TAGLINE_SHORT : TAGLINE} />

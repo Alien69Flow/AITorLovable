@@ -36,12 +36,14 @@ export function ChatHeader({ selectedModel, onModelChange, onClear, onNewChat, h
 
   return (
     <header className={`flex items-center justify-between border-b border-border/60 bg-card/40 backdrop-blur-md shrink-0 ${isCompact ? "h-10 px-1.5" : "h-12 px-2 sm:px-3"}`}>
+      {hasMessages && <h1 className="sr-only">AI Tor — Real-Time Intelligence Terminal</h1>}
       {/* Left */}
       <div className="flex items-center gap-1.5 min-w-0">
         <Button
           variant="ghost"
           size="icon"
           onClick={onToggleSidebar}
+          aria-label={sidebarOpen ? "Cerrar barra lateral" : "Abrir barra lateral"}
           className="h-8 w-8 text-muted-foreground/50 hover:text-foreground shrink-0"
         >
           {sidebarOpen ? <PanelLeftClose className="h-4 w-4" /> : <PanelLeftOpen className="h-4 w-4" />}
@@ -72,23 +74,23 @@ export function ChatHeader({ selectedModel, onModelChange, onClear, onNewChat, h
           <ModelSelector value={selectedModel} onChange={onModelChange} />
         </div>
 
-        <Button variant="ghost" size="icon" onClick={onNewChat} className="h-8 w-8 text-muted-foreground/40 hover:text-primary" title="Nuevo chat">
+        <Button variant="ghost" size="icon" onClick={onNewChat} aria-label="Nuevo chat" className="h-8 w-8 text-muted-foreground/40 hover:text-primary" title="Nuevo chat">
           <Plus className="h-4 w-4" />
         </Button>
 
         {hasMessages && (
-          <Button variant="ghost" size="icon" onClick={onClear} className="h-8 w-8 text-muted-foreground/40 hover:text-destructive" title="Limpiar chat">
+          <Button variant="ghost" size="icon" onClick={onClear} aria-label="Limpiar chat" className="h-8 w-8 text-muted-foreground/40 hover:text-destructive" title="Limpiar chat">
             <Trash2 className="h-3.5 w-3.5" />
           </Button>
         )}
 
         {!isCompact && (
           user ? (
-            <Button variant="ghost" size="icon" onClick={handleSignOut} className="h-8 w-8 text-muted-foreground/40 hover:text-foreground" title="Cerrar sesión">
+            <Button variant="ghost" size="icon" onClick={handleSignOut} aria-label="Cerrar sesión" className="h-8 w-8 text-muted-foreground/40 hover:text-foreground" title="Cerrar sesión">
               <LogOut className="h-3.5 w-3.5" />
             </Button>
           ) : (
-            <Button variant="ghost" size="icon" onClick={() => navigate('/auth')} className="h-8 w-8 text-muted-foreground/40 hover:text-foreground" title="Iniciar sesión">
+            <Button variant="ghost" size="icon" onClick={() => navigate('/auth')} aria-label="Iniciar sesión" className="h-8 w-8 text-muted-foreground/40 hover:text-foreground" title="Iniciar sesión">
               <LogIn className="h-3.5 w-3.5" />
             </Button>
           )
