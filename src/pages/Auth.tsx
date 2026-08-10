@@ -99,8 +99,8 @@ export default function Auth() {
   return (
     <>
       <Helmet>
-        <title>{isLogin ? "Iniciar Sesión" : "Registrarse"} | AlienFlow AI Tor</title>
-        <meta name="description" content="Accede a AI Tor - Terminal de Inteligencia Autónoma de AlienFlow DAO" />
+        <title>{isLogin ? "Iniciar Sesión" : "Registrarse"} | Ai Tor</title>
+        <meta name="description" content="Accede a Ai Tor — Terminal de Inteligencia Autónoma de ΔlieπFlΦw DAO" />
       </Helmet>
       <SpaceBackground />
 
