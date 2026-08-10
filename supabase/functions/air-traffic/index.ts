@@ -23,7 +23,7 @@ Deno.serve(async (req) => {
     
     const response = await fetch(
       `${OPENSKY_API}/states/all?lamin=${lamin}&lamax=${lamax}&lomin=${lomin}&lomax=${lomax}`,
-      { headers: { "Accept": "application/json" } }
+      { headers: { "Accept": "application/json" }, signal: AbortSignal.timeout(8000) }
     );
 
     if (!response.ok) {
@@ -56,15 +56,14 @@ Deno.serve(async (req) => {
       headers: { ...corsHeaders, "Content-Type": "application/json", "Cache-Control": "public, max-age=120" },
     });
   } catch (err) {
-    console.error("Air traffic error:", err);
+    console.error("Air traffic upstream unavailable, serving mock:", err);
+    const mock = generateMockFlights();
     return new Response(JSON.stringify({
-      error: "Failed to fetch air traffic data",
-      count: 0,
-      flights: generateMockFlights(),
+      ...mock,
       timestamp: new Date().toISOString(),
     }), {
-      status: 500,
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
+      status: 200,
+      headers: { ...corsHeaders, "Content-Type": "application/json", "Cache-Control": "public, max-age=60" },
     });
   }
 });
