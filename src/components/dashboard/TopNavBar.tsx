@@ -80,11 +80,11 @@ export function TopNavBar({ activeTab, onTabChange }: TopNavBarProps) {
           </Button>
 
           {user ? (
-            <Button variant="ghost" size="icon" onClick={handleSignOut} className="h-7 w-7 text-muted-foreground/60 hover:text-primary" title="Cerrar sesión">
+            <Button variant="ghost" size="icon" onClick={handleSignOut} aria-label="Cerrar sesión" className="h-7 w-7 text-muted-foreground/60 hover:text-primary" title="Cerrar sesión">
               <LogOut className="h-3.5 w-3.5" />
             </Button>
           ) : (
-            <Button variant="ghost" size="icon" onClick={() => navigate("/auth")} className="h-7 w-7 text-muted-foreground/60 hover:text-primary" title="Iniciar sesión">
+            <Button variant="ghost" size="icon" onClick={() => navigate("/auth")} aria-label="Iniciar sesión" className="h-7 w-7 text-muted-foreground/60 hover:text-primary" title="Iniciar sesión">
               <LogIn className="h-3.5 w-3.5" />
             </Button>
           )}
