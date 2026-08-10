@@ -110,7 +110,7 @@ export function UFOMonitorTab() {
       <div className="flex-1 flex flex-col min-h-0 lg:max-w-[55%]">
         <div className="flex items-center gap-2 px-3 py-2">
           <Eye className="w-4 h-4 text-primary" />
-          <span className="text-xs font-heading text-primary uppercase tracking-wider">UAP Anomaly Feed</span>
+          <h2 className="text-xs font-heading text-primary uppercase tracking-wider">UAP Anomaly Feed</h2>
           <span className="text-[9px] text-muted-foreground/50 ml-1">{sightings.length} reports</span>
           <Button
             variant="ghost"
