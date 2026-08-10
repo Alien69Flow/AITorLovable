@@ -30,8 +30,8 @@ const Index = () => {
   return (
     <>
       <Helmet>
-        <title>ΔlieπFlΦw — AI Terminal & Real-Time Intelligence</title>
-        <meta name="description" content="Real-time AI intelligence terminal with multi-oracle chat, global monitoring, and blockchain analytics. Powered by ΔlieπFlΦw DAO." />
+        <title>Ai Tor — Real-Time Intelligence Terminal</title>
+        <meta name="description" content="Multi-oracle AI intelligence hub for real-time OSINT, global monitoring, blockchain analytics, and decentralized research. Powered by ΔlieπFlΦw DAO." />
       </Helmet>
 
       <SpaceBackground />
