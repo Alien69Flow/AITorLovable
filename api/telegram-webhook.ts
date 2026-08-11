@@ -139,10 +139,15 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   }
 
   // Verify the request really comes from Telegram (setWebhook secret_token).
+  // Only enforced when a secret is configured AND the webhook was registered
+  // with it; otherwise the bot would go silent (Telegram sends no header).
   const expectedSecret = process.env.TELEGRAM_WEBHOOK_SECRET;
   const providedSecret = req.headers['x-telegram-bot-api-secret-token'];
-  if (!expectedSecret || providedSecret !== expectedSecret) {
+  if (expectedSecret && providedSecret && providedSecret !== expectedSecret) {
     return res.status(401).send('Unauthorized');
+  }
+  if (expectedSecret && !providedSecret) {
+    console.warn('Telegram webhook received without secret_token header — re-register the webhook with secret_token.');
   }
 
   const { message } = req.body || {};
