@@ -106,7 +106,6 @@ export function UFOMonitorTab() {
 
   return (
     <div className="flex-1 flex flex-col lg:flex-row gap-2 p-2 min-h-0 overflow-hidden">
-      <h1 className="sr-only">Monitor UAP — avistamientos y cámaras en directo</h1>
       {/* Left: Sightings Feed */}
       <div className="flex-1 flex flex-col min-h-0 lg:max-w-[55%]">
         <div className="flex items-center gap-2 px-3 py-2">

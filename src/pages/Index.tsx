@@ -64,7 +64,9 @@ const Index = () => {
       <div className="fixed inset-0 flex flex-col w-full max-w-[100vw] overflow-hidden z-10">
         <TopNavBar activeTab={activeTab} onTabChange={setActiveTab} />
         <main className="flex-1 flex flex-col min-h-0 pb-14 md:pb-0 overflow-hidden">
-          <h1 className="sr-only">{TAB_HEADINGS[activeTab]}</h1>
+          {activeTab !== "agents" && (
+            <h1 className="sr-only">{TAB_HEADINGS[activeTab]}</h1>
+          )}
           {renderTab()}
         </main>
       </div>
