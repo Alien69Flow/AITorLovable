@@ -171,6 +171,9 @@ export function CesiumGlobe({
       creditContainer: document.createElement("div"),
       terrainProvider: new EllipsoidTerrainProvider(),
       contextOptions: { webgl: { alpha: false } },
+      // Start with no base layer so async imagery never wipes overlays that
+      // were already added (that race made toggled-on layers invisible).
+      baseLayer: false as any,
     });
 
     // Enable built-in Cesium sky with stars and atmosphere
@@ -206,35 +209,24 @@ export function CesiumGlobe({
       console.warn("Skybox init failed, using default stars:", e);
     }
 
-    // Night lights
-    try {
-      IonImageryProvider.fromAssetId(3812).then((provider) => {
-        if (!viewer.isDestroyed()) {
-          const layer = viewer.imageryLayers.addImageryProvider(provider);
-          layer.dayAlpha = 0.0;
-          layer.nightAlpha = 0.9;
-          layer.brightness = 2.0;
-        }
-      }).catch((e: any) => console.warn("Night lights failed:", e));
-    } catch (e) { console.warn("Night lights init failed:", e); }
+    // Base satellite imagery — always pushed to the BOTTOM of the stack so any
+    // weather/OSINT overlay added meanwhile stays visible above it.
+    ArcGisMapServerImageryProvider.fromUrl(
+      "https://services.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer"
+    ).then((provider) => {
+      if (viewer.isDestroyed()) return;
+      const base = viewer.imageryLayers.addImageryProvider(provider);
+      viewer.imageryLayers.lowerToBottom(base);
+    }).catch((e: any) => console.warn("ArcGIS base imagery failed:", e));
 
-    // ArcGIS satellite imagery
-    try {
-      ArcGisMapServerImageryProvider.fromUrl(
-        "https://services.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer"
-      ).then((provider) => {
-        if (!viewer.isDestroyed()) {
-          viewer.imageryLayers.removeAll();
-          viewer.imageryLayers.addImageryProvider(provider);
-          IonImageryProvider.fromAssetId(3812).then((nightProv) => {
-            if (!viewer.isDestroyed()) {
-              const nl = viewer.imageryLayers.addImageryProvider(nightProv);
-              nl.dayAlpha = 0.0; nl.nightAlpha = 0.9; nl.brightness = 2.0;
-            }
-          }).catch(() => {});
-        }
-      });
-    } catch (e) { console.warn("ArcGIS failed:", e); }
+    // Night lights, just above the base layer.
+    IonImageryProvider.fromAssetId(3812).then((provider) => {
+      if (viewer.isDestroyed()) return;
+      const nl = viewer.imageryLayers.addImageryProvider(provider);
+      nl.dayAlpha = 0.0; nl.nightAlpha = 0.9; nl.brightness = 2.0;
+      viewer.imageryLayers.lowerToBottom(nl);
+      viewer.imageryLayers.raise(nl);
+    }).catch((e: any) => console.warn("Night lights failed:", e));
 
     // NO atmosphere ellipsoid entity — using Cesium's built-in skyAtmosphere instead
 
