@@ -7,6 +7,8 @@ import type { NasaEvent } from "@/hooks/useNasaEvents";
 import type { UAPSighting } from "@/hooks/useUAPSightings";
 import type { Flight } from "@/hooks/useAirTraffic";
 import type { Ship } from "@/hooks/useMarineTraffic";
+import { useSatellites } from "@/hooks/useSatellites";
+import { useInternetOutages } from "@/hooks/useInternetOutages";
 
 const CesiumGlobe = lazy(() =>
   import("./CesiumGlobe").then((m) => ({ default: m.CesiumGlobe }))
@@ -49,6 +51,8 @@ export function HybridGlobe({
 }: HybridGlobeProps) {
   const isMobile = useIsMobile();
   const [flyTo, setFlyTo] = useState<{ lat: number; lon: number; alt: number } | null>(null);
+  const satellites = useSatellites(!isMobile && layers.has("satellites"));
+  const { outages } = useInternetOutages(layers.has("internetOutages"));
   const onReadyRef = useRef(onReady);
   onReadyRef.current = onReady;
 
@@ -87,6 +91,8 @@ export function HybridGlobe({
           nasaEvents={layers.has("wildfires") ? nasaEvents : []}
           flights={layers.has("airTraffic") ? flights : []}
           ships={layers.has("marineTraffic") ? ships : []}
+          satellites={layers.has("satellites") ? satellites : []}
+          outages={layers.has("internetOutages") ? outages : []}
         />
       </Suspense>
     </div>

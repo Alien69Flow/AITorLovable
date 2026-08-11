@@ -32,6 +32,19 @@ import type { NasaEvent } from "@/hooks/useNasaEvents";
 import type { Flight } from "@/hooks/useAirTraffic";
 import type { Ship } from "@/hooks/useMarineTraffic";
 import { GLOBE_LAYERS, type EnvLayerKey } from "@/lib/globe-layers";
+import type { SatellitePosition } from "@/hooks/useSatellites";
+import type { OutageEvent } from "@/hooks/useInternetOutages";
+import {
+  CONFLICT_ZONES,
+  CONFLICT_ICONS,
+  CONFLICT_COLORS,
+  CHOKEPOINTS,
+  NUCLEAR_SITES,
+  MILITARY_BASES,
+  ECONOMIC_CENTERS,
+  UNDERSEA_CABLES,
+  PIPELINES,
+} from "@/lib/geo-datasets";
 
 const SUPABASE_URL =
   (import.meta.env.VITE_SUPABASE_URL as string) ||
@@ -48,6 +61,19 @@ const OWM_ALPHA: Record<string, number> = {
   wind_new: 0.65,
   temp_new: 0.7,
 };
+
+/**
+ * NASA GIBS (open, no API key) — VIIRS thermal anomalies give global wildfire
+ * detection including Spain and the rest of Europe, which the EONET point feed
+ * misses. GIBS publishes yesterday's full mosaic reliably.
+ */
+function gibsDate(): string {
+  const d = new Date(Date.now() - 36 * 3600 * 1000);
+  return d.toISOString().slice(0, 10);
+}
+
+const GIBS_URL = (layer: string, level = 8) =>
+  `https://gibs.earthdata.nasa.gov/wmts/epsg3857/best/${layer}/default/${gibsDate()}/GoogleMapsCompatible_Level${level}/{z}/{y}/{x}.png`;
 
 // The Cesium Ion token is never shipped to the browser bundle; it is fetched
 // at runtime from the server-side `cesium-tiles` proxy.
@@ -103,15 +129,19 @@ interface CesiumGlobeProps {
   nasaEvents?: NasaEvent[];
   flights?: Flight[];
   ships?: Ship[];
+  satellites?: SatellitePosition[];
+  outages?: OutageEvent[];
 }
 
 export function CesiumGlobe({
   onHotspotClick, sightings = [], visibleLayers, envLayers, flyTo, kpIndex = 0,
   earthquakes = [], nasaEvents = [], flights = [], ships = [],
+  satellites = [], outages = [],
 }: CesiumGlobeProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const viewerRef = useRef<CesiumViewer | null>(null);
   const owmLayersRef = useRef<Record<string, any>>({});
+  const gibsLayersRef = useRef<Record<string, any>>({});
   const sightingEntityIdsRef = useRef<string[]>([]);
   const marketEntityIdsRef = useRef<string[]>([]);
   const arcEntityIdsRef = useRef<string[]>([]);
@@ -120,6 +150,9 @@ export function CesiumGlobe({
   const nasaEntityIdsRef = useRef<string[]>([]);
   const flightEntityIdsRef = useRef<string[]>([]);
   const shipEntityIdsRef = useRef<string[]>([]);
+  const staticEntityIdsRef = useRef<string[]>([]);
+  const satEntityIdsRef = useRef<string[]>([]);
+  const outageEntityIdsRef = useRef<string[]>([]);
 
   const handleHotspotClick = useCallback(
     (data: HotspotData | null) => { onHotspotClick?.(data); },
@@ -138,6 +171,9 @@ export function CesiumGlobe({
       creditContainer: document.createElement("div"),
       terrainProvider: new EllipsoidTerrainProvider(),
       contextOptions: { webgl: { alpha: false } },
+      // Start with no base layer so async imagery never wipes overlays that
+      // were already added (that race made toggled-on layers invisible).
+      baseLayer: false as any,
     });
 
     // Enable built-in Cesium sky with stars and atmosphere
@@ -173,35 +209,24 @@ export function CesiumGlobe({
       console.warn("Skybox init failed, using default stars:", e);
     }
 
-    // Night lights
-    try {
-      IonImageryProvider.fromAssetId(3812).then((provider) => {
-        if (!viewer.isDestroyed()) {
-          const layer = viewer.imageryLayers.addImageryProvider(provider);
-          layer.dayAlpha = 0.0;
-          layer.nightAlpha = 0.9;
-          layer.brightness = 2.0;
-        }
-      }).catch((e: any) => console.warn("Night lights failed:", e));
-    } catch (e) { console.warn("Night lights init failed:", e); }
+    // Base satellite imagery — always pushed to the BOTTOM of the stack so any
+    // weather/OSINT overlay added meanwhile stays visible above it.
+    ArcGisMapServerImageryProvider.fromUrl(
+      "https://services.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer"
+    ).then((provider) => {
+      if (viewer.isDestroyed()) return;
+      const base = viewer.imageryLayers.addImageryProvider(provider);
+      viewer.imageryLayers.lowerToBottom(base);
+    }).catch((e: any) => console.warn("ArcGIS base imagery failed:", e));
 
-    // ArcGIS satellite imagery
-    try {
-      ArcGisMapServerImageryProvider.fromUrl(
-        "https://services.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer"
-      ).then((provider) => {
-        if (!viewer.isDestroyed()) {
-          viewer.imageryLayers.removeAll();
-          viewer.imageryLayers.addImageryProvider(provider);
-          IonImageryProvider.fromAssetId(3812).then((nightProv) => {
-            if (!viewer.isDestroyed()) {
-              const nl = viewer.imageryLayers.addImageryProvider(nightProv);
-              nl.dayAlpha = 0.0; nl.nightAlpha = 0.9; nl.brightness = 2.0;
-            }
-          }).catch(() => {});
-        }
-      });
-    } catch (e) { console.warn("ArcGIS failed:", e); }
+    // Night lights, just above the base layer.
+    IonImageryProvider.fromAssetId(3812).then((provider) => {
+      if (viewer.isDestroyed()) return;
+      const nl = viewer.imageryLayers.addImageryProvider(provider);
+      nl.dayAlpha = 0.0; nl.nightAlpha = 0.9; nl.brightness = 2.0;
+      viewer.imageryLayers.lowerToBottom(nl);
+      viewer.imageryLayers.raise(nl);
+    }).catch((e: any) => console.warn("Night lights failed:", e));
 
     // NO atmosphere ellipsoid entity — using Cesium's built-in skyAtmosphere instead
 
@@ -264,39 +289,54 @@ export function CesiumGlobe({
       const alpha = OWM_ALPHA[id] ?? 0.7;
 
       if (shouldShow && !existing) {
-        // Add new layer
         try {
-          console.log(`[CesiumGlobe] Adding OWM layer: ${id}, URL: ${OWM_TILE_URL(id)}`);
           const imageryProvider = new UrlTemplateImageryProvider({
             url: OWM_TILE_URL(id),
             maximumLevel: 10,
             minimumLevel: 0,
             credit: "OpenWeatherMap",
           });
-          
           const layer = viewer.imageryLayers.addImageryProvider(imageryProvider);
           layer.alpha = alpha;
-          // Add above base imagery
-          const baseCount = viewer.imageryLayers.length;
-          viewer.imageryLayers.move(layer, Math.max(1, baseCount - 2));
-          
           owmLayersRef.current[id] = layer;
-          console.log(`[CesiumGlobe] OWM layer ADDED: ${id}, alpha: ${alpha}, total layers: ${viewer.imageryLayers.length}`);
         } catch (e) {
           console.error("[CesiumGlobe] OWM layer add FAILED:", id, e);
         }
       } else if (existing) {
-        // Update visibility of existing layer
         try {
           existing.show = shouldShow;
           existing.alpha = shouldShow ? alpha : 0;
-          console.log(`[CesiumGlobe] OWM layer ${shouldShow ? 'SHOWN' : 'HIDDEN'}: ${id}, alpha: ${existing.alpha}`);
         } catch (e) {
           console.error("[CesiumGlobe] OWM layer toggle FAILED:", id, e);
         }
-      } else if (!shouldShow && !existing) {
-        // Layer not needed and not created yet - do nothing
-        console.log(`[CesiumGlobe] OWM layer not needed: ${id}`);
+      }
+    });
+
+    // NASA GIBS imagery overlays (no key required).
+    const GIBS_OVERLAYS: { key: EnvLayerKey; layer: string; alpha: number; level?: number }[] = [
+      { key: "wildfires", layer: "VIIRS_NOAA20_Thermal_Anomalies_375m_All", alpha: 0.95, level: 8 },
+      { key: "solarActivity", layer: "VIIRS_SNPP_DayNightBand_At_Sensor_Radiance", alpha: 0.35, level: 8 },
+    ];
+    GIBS_OVERLAYS.forEach(({ key, layer: layerId, alpha, level }) => {
+      const shouldShow = active.has(key);
+      const existing = gibsLayersRef.current[layerId];
+      if (shouldShow && !existing) {
+        try {
+          const provider = new UrlTemplateImageryProvider({
+            url: GIBS_URL(layerId, level),
+            maximumLevel: level ?? 8,
+            minimumLevel: 0,
+            credit: "NASA GIBS / EOSDIS",
+          });
+          const l = viewer.imageryLayers.addImageryProvider(provider);
+          l.alpha = alpha;
+          gibsLayersRef.current[layerId] = l;
+        } catch (e) {
+          console.error("[CesiumGlobe] GIBS layer add failed:", layerId, e);
+        }
+      } else if (existing) {
+        existing.show = shouldShow;
+        existing.alpha = shouldShow ? alpha : 0;
       }
     });
 
@@ -714,6 +754,219 @@ export function CesiumGlobe({
       shipEntityIdsRef.current.push(entityId);
     });
   }, [ships, envLayers]);
+
+  // Conflicts + strategic infrastructure (static registries, Liveuamap-style)
+  useEffect(() => {
+    const viewer = viewerRef.current;
+    if (!viewer || viewer.isDestroyed()) return;
+    const active = envLayers ?? new Set<EnvLayerKey>();
+
+    staticEntityIdsRef.current.forEach((id) => {
+      const e = viewer.entities.getById(id);
+      if (e) viewer.entities.remove(e);
+    });
+    staticEntityIdsRef.current = [];
+
+    const addPoint = (
+      id: string, lat: number, lon: number, color: string, label: string,
+      size: number, payload?: Record<string, unknown>,
+    ) => {
+      viewer.entities.add({
+        id,
+        position: Cartesian3.fromDegrees(lon, lat, 0),
+        point: {
+          pixelSize: size,
+          color: hexToColor(color, 0.9),
+          outlineColor: hexToColor(color, 0.35),
+          outlineWidth: 4,
+          scaleByDistance: new NearFarScalar(1e6, 1.3, 1e8, 0.45),
+          disableDepthTestDistance: Number.POSITIVE_INFINITY,
+        },
+        label: {
+          text: label,
+          font: "10px monospace",
+          fillColor: hexToColor(color, 0.95),
+          outlineColor: Color.BLACK,
+          outlineWidth: 2,
+          style: 2,
+          verticalOrigin: VerticalOrigin.BOTTOM,
+          horizontalOrigin: HorizontalOrigin.CENTER,
+          pixelOffset: new Cartesian2(0, -12),
+          scaleByDistance: new NearFarScalar(1e6, 0.9, 1e8, 0.2),
+          disableDepthTestDistance: Number.POSITIVE_INFINITY,
+        },
+        properties: payload ? ({ sightingData: JSON.stringify(payload) } as any) : undefined,
+      });
+      staticEntityIdsRef.current.push(id);
+    };
+
+    if (active.has("conflictZones")) {
+      CONFLICT_ZONES.forEach((c) => {
+        addPoint(
+          `conflict-${c.id}`, c.lat, c.lon, CONFLICT_COLORS[c.category],
+          `${CONFLICT_ICONS[c.category]} ${c.name}`,
+          7 + c.intensity * 7,
+          {
+            lat: c.lat, lon: c.lon, location: `${c.name} — ${c.country}`,
+            description: `${c.brief} · Reliability ${c.reliability}%`,
+            type: c.category, severity: c.intensity > 0.8 ? "critical" : "high",
+            source: c.source, category: "conflict", date_reported: "live",
+          },
+        );
+      });
+    }
+
+    if (active.has("chokepoints")) {
+      CHOKEPOINTS.forEach((p) =>
+        addPoint(`choke-${p.id}`, p.lat, p.lon, "#ea580c", `⚓ ${p.name}`, 8, {
+          lat: p.lat, lon: p.lon, location: p.name, description: p.detail,
+          type: "chokepoint", severity: "medium", source: "WorldMonitor registry",
+          category: "logistics", date_reported: "static",
+        }),
+      );
+    }
+    if (active.has("nuclearSites")) {
+      NUCLEAR_SITES.forEach((p) =>
+        addPoint(`nuke-${p.id}`, p.lat, p.lon, "#7c3aed", `☢️ ${p.name}`, 8, {
+          lat: p.lat, lon: p.lon, location: p.name, description: p.detail,
+          type: "nuclear", severity: "high", source: "WorldMonitor registry",
+          category: "geopolitical", date_reported: "static",
+        }),
+      );
+    }
+    if (active.has("militaryBases")) {
+      MILITARY_BASES.forEach((p) =>
+        addPoint(`mil-${p.id}`, p.lat, p.lon, "#94a3b8", `🛡️ ${p.name}`, 7, {
+          lat: p.lat, lon: p.lon, location: p.name, description: p.detail,
+          type: "military", severity: "medium", source: "WorldMonitor registry",
+          category: "geopolitical", date_reported: "static",
+        }),
+      );
+    }
+    if (active.has("economicCenters")) {
+      ECONOMIC_CENTERS.forEach((p) =>
+        addPoint(`eco-${p.id}`, p.lat, p.lon, "#10b981", `💹 ${p.name}`, 7, {
+          lat: p.lat, lon: p.lon, location: p.name, description: p.detail,
+          type: "market", severity: "low", source: "WorldMonitor registry",
+          category: "finance", date_reported: "static",
+        }),
+      );
+    }
+
+    const addLine = (id: string, path: [number, number][], color: string, name: string) => {
+      viewer.entities.add({
+        id,
+        polyline: {
+          positions: path.map(([lon, lat]) => Cartesian3.fromDegrees(lon, lat, 20000)),
+          width: 2,
+          material: new PolylineGlowMaterialProperty({
+            glowPower: 0.25,
+            color: Color.fromCssColorString(color).withAlpha(0.6),
+          }),
+        },
+        properties: { cableName: name } as any,
+      });
+      staticEntityIdsRef.current.push(id);
+    };
+
+    if (active.has("underseaCables")) {
+      UNDERSEA_CABLES.forEach((c) => addLine(`cable-${c.id}`, c.path, "#0891b2", c.name));
+    }
+    if (active.has("pipelines")) {
+      PIPELINES.forEach((p) => addLine(`pipe-${p.id}`, p.path, "#ca8a04", p.name));
+    }
+  }, [envLayers]);
+
+  // Orbital surveillance — propagated TLEs
+  useEffect(() => {
+    const viewer = viewerRef.current;
+    if (!viewer || viewer.isDestroyed()) return;
+
+    satEntityIdsRef.current.forEach((id) => {
+      const e = viewer.entities.getById(id);
+      if (e) viewer.entities.remove(e);
+    });
+    satEntityIdsRef.current = [];
+
+    satellites.forEach((s) => {
+      if (!Number.isFinite(s.lat) || !Number.isFinite(s.lon)) return;
+      const entityId = `satellite-${s.id}`;
+      viewer.entities.add({
+        id: entityId,
+        position: Cartesian3.fromDegrees(s.lon, s.lat, Math.max(0, s.altKm) * 1000),
+        point: {
+          pixelSize: 4,
+          color: hexToColor("#8b5cf6", 0.95),
+          outlineColor: hexToColor("#c4b5fd", 0.4),
+          outlineWidth: 2,
+          scaleByDistance: new NearFarScalar(1e6, 1.4, 1e8, 0.5),
+          disableDepthTestDistance: Number.POSITIVE_INFINITY,
+        },
+        label: {
+          text: s.name,
+          font: "8px monospace",
+          fillColor: hexToColor("#c4b5fd", 0.85),
+          outlineColor: Color.BLACK,
+          outlineWidth: 2,
+          style: 2,
+          verticalOrigin: VerticalOrigin.BOTTOM,
+          pixelOffset: new Cartesian2(0, -8),
+          scaleByDistance: new NearFarScalar(1e6, 0.7, 3e7, 0.1),
+          disableDepthTestDistance: Number.POSITIVE_INFINITY,
+        },
+      });
+      satEntityIdsRef.current.push(entityId);
+    });
+  }, [satellites]);
+
+  // Internet outages (IODA)
+  useEffect(() => {
+    const viewer = viewerRef.current;
+    if (!viewer || viewer.isDestroyed()) return;
+
+    outageEntityIdsRef.current.forEach((id) => {
+      const e = viewer.entities.getById(id);
+      if (e) viewer.entities.remove(e);
+    });
+    outageEntityIdsRef.current = [];
+
+    outages.forEach((o) => {
+      const entityId = `outage-${o.code}`;
+      viewer.entities.add({
+        id: entityId,
+        position: Cartesian3.fromDegrees(o.lon, o.lat, 0),
+        ellipse: {
+          semiMajorAxis: 260000,
+          semiMinorAxis: 260000,
+          material: hexToColor("#dc2626", 0.15),
+          outline: true,
+          outlineColor: hexToColor("#dc2626", 0.6),
+          height: 0,
+        },
+        label: {
+          text: `📡 ${o.name} (${o.events})`,
+          font: "10px monospace",
+          fillColor: hexToColor("#fca5a5", 0.95),
+          outlineColor: Color.BLACK,
+          outlineWidth: 2,
+          style: 2,
+          verticalOrigin: VerticalOrigin.BOTTOM,
+          pixelOffset: new Cartesian2(0, -10),
+          scaleByDistance: new NearFarScalar(1e6, 0.9, 1e8, 0.2),
+          disableDepthTestDistance: Number.POSITIVE_INFINITY,
+        },
+        properties: {
+          sightingData: JSON.stringify({
+            lat: o.lat, lon: o.lon, location: o.name,
+            description: `${o.events} internet disruption events in the last 24h`,
+            type: "outage", severity: "medium", source: "IODA / Georgia Tech",
+            category: "intel", date_reported: "24h",
+          }),
+        } as any,
+      });
+      outageEntityIdsRef.current.push(entityId);
+    });
+  }, [outages]);
 
   return (
     <div ref={containerRef} className="w-full h-full" style={{ background: "#000000" }} />

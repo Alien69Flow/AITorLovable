@@ -1,5 +1,5 @@
-import { useState, useEffect } from "react";
-import { X, TrendingUp, TrendingDown, MapPin, TriangleAlert as AlertTriangle, Zap, Crosshair, Activity } from "lucide-react";
+import { useState, useEffect, useMemo } from "react";
+import { X, MapPin, TriangleAlert as AlertTriangle, Zap, Crosshair, Activity, Flame, Radio, ChevronDown } from "lucide-react";
 import type { HotspotData } from "@/components/globe/GlobeScene";
 import type { SpaceWeather } from "@/hooks/useSpaceWeather";
 import { fetchUapSightingsCount } from "@/lib/uap-sightings";
@@ -24,6 +24,10 @@ interface GlobeOverlayProps {
   spaceWeather?: SpaceWeather;
   earthquakeCount?: number;
   nasaEventCount?: number;
+  conflictCount?: number;
+  wildfireCount?: number;
+  outageCount?: number;
+  criticalIntelCount?: number;
 }
 
 export function GlobeOverlay({
@@ -32,31 +36,27 @@ export function GlobeOverlay({
   spaceWeather,
   earthquakeCount = 0,
   nasaEventCount = 0,
+  conflictCount = 0,
+  wildfireCount = 0,
+  outageCount = 0,
+  criticalIntelCount = 0,
 }: GlobeOverlayProps) {
-  const kpContrib = spaceWeather?.kpIndex ? spaceWeather.kpIndex * 8 : 0;
-  const stormContrib = spaceWeather?.solarStorm ? 25 : 0;
-  const quakeContrib = Math.min(earthquakeCount * 0.1, 15);
-  const nasaContrib = Math.min(nasaEventCount * 0.5, 10);
-  const baseTension = Math.max(
-    15,
-    Math.min(100, kpContrib + stormContrib + quakeContrib + nasaContrib + 10)
-  );
+  const [showBreakdown, setShowBreakdown] = useState(false);
 
-  const [tensionLevel, setTensionLevel] = useState(baseTension);
-
-  useEffect(() => {
-    setTensionLevel(baseTension);
-  }, [baseTension]);
-
-  useEffect(() => {
-    const interval = setInterval(() => {
-      setTensionLevel((prev) => {
-        const delta = (Math.random() - 0.5) * 2;
-        return Math.max(10, Math.min(100, prev + delta));
-      });
-    }, 8000);
-    return () => clearInterval(interval);
-  }, []);
+  // Weighted, fully data-driven tension score — no synthetic drift.
+  const { tensionLevel, factors } = useMemo(() => {
+    const kp = spaceWeather?.kpIndex ?? 0;
+    const rows = [
+      { key: "Conflict events", value: conflictCount, points: Math.min(conflictCount * 1.6, 32), Icon: Crosshair, color: "#f87171" },
+      { key: "Critical intel", value: criticalIntelCount, points: Math.min(criticalIntelCount * 3, 18), Icon: Radio, color: "#fbbf24" },
+      { key: "Seismic (M2.5+)", value: earthquakeCount, points: Math.min(earthquakeCount * 0.12, 14), Icon: Activity, color: "#fb923c" },
+      { key: "Wildfires / hazards", value: wildfireCount || nasaEventCount, points: Math.min((wildfireCount || nasaEventCount) * 0.4, 12), Icon: Flame, color: "#f97316" },
+      { key: `Geomagnetic Kp ${kp.toFixed(1)}`, value: Math.round(kp * 10) / 10, points: Math.min(kp * 2.4, 16) + (spaceWeather?.solarStorm ? 6 : 0), Icon: Zap, color: "#c084fc" },
+      { key: "Internet outages", value: outageCount, points: Math.min(outageCount * 0.8, 8), Icon: Radio, color: "#dc2626" },
+    ];
+    const total = rows.reduce((sum, r) => sum + r.points, 0);
+    return { tensionLevel: Math.max(5, Math.min(100, Math.round(total))), factors: rows };
+  }, [spaceWeather, conflictCount, criticalIntelCount, earthquakeCount, wildfireCount, nasaEventCount, outageCount]);
 
   const tensionColor =
     tensionLevel > 70 ? "#f87171" : tensionLevel > 40 ? "#fbbf24" : "#34d399";
@@ -70,7 +70,10 @@ export function GlobeOverlay({
     <>
       {/* Global Tension Indicator - Premium Badge */}
       <div className="absolute top-2 left-1/2 -translate-x-1/2 z-10 px-2 w-full max-w-[440px] md:w-auto md:max-w-none">
-        <div
+        <button
+          type="button"
+          onClick={() => setShowBreakdown((v) => !v)}
+          aria-label="Global tension breakdown"
           className="flex items-center gap-2 md:gap-3 px-3 md:px-5 py-1.5 md:py-2 rounded-2xl backdrop-blur-2xl border transition-all duration-500 justify-center"
           style={{
             background: "rgba(15, 23, 42, 0.7)",
@@ -110,7 +113,38 @@ export function GlobeOverlay({
               </span>
             </div>
           )}
-        </div>
+          <ChevronDown
+            className={`w-3.5 h-3.5 text-slate-400 transition-transform ${showBreakdown ? "rotate-180" : ""}`}
+          />
+        </button>
+
+        {showBreakdown && (
+          <div className="mt-2 mx-auto w-full max-w-[340px] rounded-2xl border border-slate-700/40 bg-slate-950/90 backdrop-blur-2xl p-3 space-y-2 shadow-[0_8px_32px_rgba(0,0,0,0.6)]">
+            <div className="flex items-center justify-between">
+              <span className="text-[9px] uppercase tracking-wider text-slate-500">Tension drivers</span>
+              <span className="text-[9px] font-mono" style={{ color: tensionColor }}>
+                {tensionLevel}/100
+              </span>
+            </div>
+            {factors.map((f) => (
+              <div key={f.key} className="flex items-center gap-2">
+                <f.Icon className="w-3.5 h-3.5 shrink-0" style={{ color: f.color }} />
+                <span className="text-[10px] text-slate-300 flex-1 truncate">{f.key}</span>
+                <span className="text-[10px] font-mono text-slate-400">{f.value}</span>
+                <div className="w-16 h-1.5 rounded-full bg-slate-800 overflow-hidden">
+                  <div
+                    className="h-full rounded-full"
+                    style={{ width: `${Math.min(100, (f.points / 32) * 100)}%`, backgroundColor: f.color }}
+                  />
+                </div>
+              </div>
+            ))}
+            <div className="pt-1.5 border-t border-slate-700/30 flex items-center justify-between text-[8px] text-slate-500">
+              <span>USGS · NOAA SWPC · NASA · IODA · OSINT</span>
+              <span className="text-emerald-400">LIVE</span>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Detail Popup */}

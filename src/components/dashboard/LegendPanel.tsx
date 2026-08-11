@@ -76,6 +76,7 @@ interface LegendPanelProps {
   tier: Tier;
   hasAccess: (required: Tier) => boolean;
   onClose?: () => void;
+  defaultCollapsed?: boolean;
 }
 
 export function LegendPanel({
@@ -87,13 +88,14 @@ export function LegendPanel({
   tier,
   hasAccess,
   onClose,
+  defaultCollapsed = true,
 }: LegendPanelProps) {
   return (
     <GlassPanel
       icon={Layers}
       title="Legend & Controls"
       collapsible
-      defaultCollapsed={false}
+      defaultCollapsed={defaultCollapsed}
       className="w-full max-w-[300px]"
       glowBorder
       glowColor="#22d3ee"
