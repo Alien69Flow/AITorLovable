@@ -10,6 +10,10 @@ export interface AIModel {
   contextWindow?: string;
   speed?: 'instant' | 'fast' | 'medium' | 'slow';
   recommended?: boolean;
+  // API configuration
+  apiKeyEnv?: string;
+  apiBase?: string;
+  modelId?: string;
 }
 
 export const AI_MODELS: AIModel[] = [
@@ -135,16 +139,34 @@ export const AI_MODELS: AIModel[] = [
     speed: 'medium',
   },
   {
-    id: "deepseek/deepseek-v3",
+    id: "deepseek/deepseek-chat",
     name: "DeepSeek V3",
     provider: "DeepSeek",
-    description: "Código abierto de última generación",
+    description: "Código abierto de última generación — razonamiento matemático",
     supportsVision: false,
-    available: false,
+    available: true,
     oracleType: 'external',
     oracleIcon: '🌊',
     contextWindow: '64K',
+    speed: 'fast',
+    apiKeyEnv: 'DEEPSEEK_API_KEY',
+    apiBase: 'https://api.deepseek.com',
+    modelId: 'deepseek-chat',
+  },
+  {
+    id: "deepseek/deepseek-reasoner",
+    name: "DeepSeek R1",
+    provider: "DeepSeek",
+    description: "Razonador avanzado — mejor en matemáticas y código",
+    supportsVision: false,
+    available: true,
+    oracleType: 'external',
+    oracleIcon: '🧠',
+    contextWindow: '64K',
     speed: 'medium',
+    apiKeyEnv: 'DEEPSEEK_API_KEY',
+    apiBase: 'https://api.deepseek.com',
+    modelId: 'deepseek-reasoner',
   },
   {
     id: "anthropic/claude-sonnet-4",

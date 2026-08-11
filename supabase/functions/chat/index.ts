@@ -26,7 +26,13 @@ const ANTHROPIC_MODELS = [
   "anthropic/claude-sonnet-4",
 ];
 
-const ALLOWED_MODELS = [...LOVABLE_MODELS, ...GROK_MODELS, ...ANTHROPIC_MODELS];
+// DeepSeek models (direct DeepSeek API)
+const DEEPSEEK_MODELS = [
+  "deepseek/deepseek-chat",
+  "deepseek/deepseek-reasoner",
+];
+
+const ALLOWED_MODELS = [...LOVABLE_MODELS, ...GROK_MODELS, ...ANTHROPIC_MODELS, ...DEEPSEEK_MODELS];
 
 // Validation constants
 const MAX_MESSAGES = 100;
@@ -317,6 +323,37 @@ async function routeToAnthropic(model: string, processedMessages: unknown[]) {
   });
 }
 
+// Route to DeepSeek API
+async function routeToDeepSeek(model: string, processedMessages: unknown[]) {
+  const DEEPSEEK_API_KEY = Deno.env.get("DEEPSEEK_API_KEY");
+  if (!DEEPSEEK_API_KEY) {
+    throw new Error("DEEPSEEK_API_KEY is not configured");
+  }
+
+  const deepseekModelMap: Record<string, string> = {
+    "deepseek-chat": "deepseek-chat",
+    "deepseek-reasoner": "deepseek-reasoner",
+  };
+  const requested = model.replace("deepseek/", "");
+  const deepseekModel = deepseekModelMap[requested] ?? requested;
+
+  return await fetch("https://api.deepseek.com/chat/completions", {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${DEEPSEEK_API_KEY}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      model: deepseekModel,
+      messages: [
+        { role: "system", content: SYSTEM_PROMPT },
+        ...processedMessages as Array<{ role: string; content: unknown }>,
+      ],
+      stream: true,
+    }),
+  });
+}
+
 function classifyProviderError(status: number, errorText: string) {
   const normalized = errorText.toLowerCase();
 
@@ -386,6 +423,8 @@ Deno.serve(async (req) => {
         response = await routeToGrok(model, processedMessages);
       } else if (ANTHROPIC_MODELS.includes(model)) {
         response = await routeToAnthropic(model, processedMessages);
+      } else if (DEEPSEEK_MODELS.includes(model)) {
+        response = await routeToDeepSeek(model, processedMessages);
       } else {
         response = await routeToLovable(model, processedMessages);
       }
