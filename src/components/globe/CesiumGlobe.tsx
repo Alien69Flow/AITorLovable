@@ -129,15 +129,19 @@ interface CesiumGlobeProps {
   nasaEvents?: NasaEvent[];
   flights?: Flight[];
   ships?: Ship[];
+  satellites?: SatellitePosition[];
+  outages?: OutageEvent[];
 }
 
 export function CesiumGlobe({
   onHotspotClick, sightings = [], visibleLayers, envLayers, flyTo, kpIndex = 0,
   earthquakes = [], nasaEvents = [], flights = [], ships = [],
+  satellites = [], outages = [],
 }: CesiumGlobeProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const viewerRef = useRef<CesiumViewer | null>(null);
   const owmLayersRef = useRef<Record<string, any>>({});
+  const gibsLayersRef = useRef<Record<string, any>>({});
   const sightingEntityIdsRef = useRef<string[]>([]);
   const marketEntityIdsRef = useRef<string[]>([]);
   const arcEntityIdsRef = useRef<string[]>([]);
@@ -146,6 +150,9 @@ export function CesiumGlobe({
   const nasaEntityIdsRef = useRef<string[]>([]);
   const flightEntityIdsRef = useRef<string[]>([]);
   const shipEntityIdsRef = useRef<string[]>([]);
+  const staticEntityIdsRef = useRef<string[]>([]);
+  const satEntityIdsRef = useRef<string[]>([]);
+  const outageEntityIdsRef = useRef<string[]>([]);
 
   const handleHotspotClick = useCallback(
     (data: HotspotData | null) => { onHotspotClick?.(data); },
