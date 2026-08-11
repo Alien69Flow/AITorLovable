@@ -289,39 +289,54 @@ export function CesiumGlobe({
       const alpha = OWM_ALPHA[id] ?? 0.7;
 
       if (shouldShow && !existing) {
-        // Add new layer
         try {
-          console.log(`[CesiumGlobe] Adding OWM layer: ${id}, URL: ${OWM_TILE_URL(id)}`);
           const imageryProvider = new UrlTemplateImageryProvider({
             url: OWM_TILE_URL(id),
             maximumLevel: 10,
             minimumLevel: 0,
             credit: "OpenWeatherMap",
           });
-          
           const layer = viewer.imageryLayers.addImageryProvider(imageryProvider);
           layer.alpha = alpha;
-          // Add above base imagery
-          const baseCount = viewer.imageryLayers.length;
-          viewer.imageryLayers.move(layer, Math.max(1, baseCount - 2));
-          
           owmLayersRef.current[id] = layer;
-          console.log(`[CesiumGlobe] OWM layer ADDED: ${id}, alpha: ${alpha}, total layers: ${viewer.imageryLayers.length}`);
         } catch (e) {
           console.error("[CesiumGlobe] OWM layer add FAILED:", id, e);
         }
       } else if (existing) {
-        // Update visibility of existing layer
         try {
           existing.show = shouldShow;
           existing.alpha = shouldShow ? alpha : 0;
-          console.log(`[CesiumGlobe] OWM layer ${shouldShow ? 'SHOWN' : 'HIDDEN'}: ${id}, alpha: ${existing.alpha}`);
         } catch (e) {
           console.error("[CesiumGlobe] OWM layer toggle FAILED:", id, e);
         }
-      } else if (!shouldShow && !existing) {
-        // Layer not needed and not created yet - do nothing
-        console.log(`[CesiumGlobe] OWM layer not needed: ${id}`);
+      }
+    });
+
+    // NASA GIBS imagery overlays (no key required).
+    const GIBS_OVERLAYS: { key: EnvLayerKey; layer: string; alpha: number; level?: number }[] = [
+      { key: "wildfires", layer: "VIIRS_NOAA20_Thermal_Anomalies_375m_All", alpha: 0.95, level: 8 },
+      { key: "solarActivity", layer: "VIIRS_SNPP_DayNightBand_At_Sensor_Radiance", alpha: 0.35, level: 8 },
+    ];
+    GIBS_OVERLAYS.forEach(({ key, layer: layerId, alpha, level }) => {
+      const shouldShow = active.has(key);
+      const existing = gibsLayersRef.current[layerId];
+      if (shouldShow && !existing) {
+        try {
+          const provider = new UrlTemplateImageryProvider({
+            url: GIBS_URL(layerId, level),
+            maximumLevel: level ?? 8,
+            minimumLevel: 0,
+            credit: "NASA GIBS / EOSDIS",
+          });
+          const l = viewer.imageryLayers.addImageryProvider(provider);
+          l.alpha = alpha;
+          gibsLayersRef.current[layerId] = l;
+        } catch (e) {
+          console.error("[CesiumGlobe] GIBS layer add failed:", layerId, e);
+        }
+      } else if (existing) {
+        existing.show = shouldShow;
+        existing.alpha = shouldShow ? alpha : 0;
       }
     });
 
