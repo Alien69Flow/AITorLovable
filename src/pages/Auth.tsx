@@ -129,7 +129,7 @@ export default function Auth() {
                   <div className="absolute -inset-3 bg-primary/10 rounded-full blur-lg group-hover:bg-primary/20 transition-all duration-500" />
                   <img 
                     src={alienflowLogo} 
-                    alt="AlienFlow Logo" 
+                   alt="AlienFlow" 
                     className="relative w-20 h-20 object-contain drop-shadow-[0_0_12px_rgba(105,175,0,0.4)] group-hover:scale-105 transition-transform duration-300"
                   />
                 </div>
