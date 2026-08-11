@@ -118,7 +118,7 @@ export function ChatInput({ onSend, isLoading, supportsVision }: ChatInputProps)
           <div className="flex items-center gap-0.5">
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <button type="button" disabled={isLoading} className="flex items-center gap-1 h-8 px-2 rounded-lg text-muted-foreground/60 hover:text-foreground hover:bg-muted/30 transition-all disabled:opacity-30">
+                <button type="button" aria-label="Abrir herramientas de AI Tor" disabled={isLoading} className="flex items-center gap-1 h-8 px-2 rounded-lg text-muted-foreground/60 hover:text-foreground hover:bg-muted/30 transition-all disabled:opacity-30">
                   <Plus className="h-4 w-4" />
                 </button>
               </DropdownMenuTrigger>
@@ -229,6 +229,7 @@ export function ChatInput({ onSend, isLoading, supportsVision }: ChatInputProps)
 
             <button
               type="submit"
+              aria-label="Enviar mensaje"
               disabled={isLoading || (!input.trim() && !imageData)}
               className="h-8 w-8 rounded-xl flex items-center justify-center bg-primary text-primary-foreground hover:bg-primary/90 transition-all disabled:opacity-30 disabled:cursor-not-allowed shadow-md shadow-primary/20"
             >

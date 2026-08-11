@@ -204,6 +204,7 @@ export function GlassPanel({
           {headerRight}
           {onClose && (
             <button
+              aria-label="Cerrar panel"
               onClick={(e) => {
                 e.stopPropagation();
                 onClose();

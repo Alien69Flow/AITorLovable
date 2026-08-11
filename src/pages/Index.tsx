@@ -15,6 +15,15 @@ export type TabId = "agents" | "alien" | "cosmos" | "globe" | "markets" | "syste
 const Index = () => {
   const [activeTab, setActiveTab] = useState<TabId>("agents");
 
+  const TAB_HEADINGS: Record<TabId, string> = {
+    agents: "Agentes AI Tor — chat multi-oráculo y workflows",
+    alien: "Monitor UAP — anomalías y cámaras en directo",
+    cosmos: "Cosmos — sistema solar y objetos cercanos",
+    globe: "Globo táctico — capas OSINT y meteorología en tiempo real",
+    markets: "Mercados — cripto, predicción y señales",
+    system: "Sistema — perfil, gobernanza y ajustes",
+  };
+
   const renderTab = () => {
     switch (activeTab) {
       case "agents": return <ChatContainer />;
@@ -55,6 +64,9 @@ const Index = () => {
       <div className="fixed inset-0 flex flex-col w-full max-w-[100vw] overflow-hidden z-10">
         <TopNavBar activeTab={activeTab} onTabChange={setActiveTab} />
         <main className="flex-1 flex flex-col min-h-0 pb-14 md:pb-0 overflow-hidden">
+          {activeTab !== "agents" && (
+            <h1 className="sr-only">{TAB_HEADINGS[activeTab]}</h1>
+          )}
           {renderTab()}
         </main>
       </div>
