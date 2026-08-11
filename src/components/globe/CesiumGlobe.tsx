@@ -32,6 +32,19 @@ import type { NasaEvent } from "@/hooks/useNasaEvents";
 import type { Flight } from "@/hooks/useAirTraffic";
 import type { Ship } from "@/hooks/useMarineTraffic";
 import { GLOBE_LAYERS, type EnvLayerKey } from "@/lib/globe-layers";
+import type { SatellitePosition } from "@/hooks/useSatellites";
+import type { OutageEvent } from "@/hooks/useInternetOutages";
+import {
+  CONFLICT_ZONES,
+  CONFLICT_ICONS,
+  CONFLICT_COLORS,
+  CHOKEPOINTS,
+  NUCLEAR_SITES,
+  MILITARY_BASES,
+  ECONOMIC_CENTERS,
+  UNDERSEA_CABLES,
+  PIPELINES,
+} from "@/lib/geo-datasets";
 
 const SUPABASE_URL =
   (import.meta.env.VITE_SUPABASE_URL as string) ||
@@ -48,6 +61,19 @@ const OWM_ALPHA: Record<string, number> = {
   wind_new: 0.65,
   temp_new: 0.7,
 };
+
+/**
+ * NASA GIBS (open, no API key) — VIIRS thermal anomalies give global wildfire
+ * detection including Spain and the rest of Europe, which the EONET point feed
+ * misses. GIBS publishes yesterday's full mosaic reliably.
+ */
+function gibsDate(): string {
+  const d = new Date(Date.now() - 36 * 3600 * 1000);
+  return d.toISOString().slice(0, 10);
+}
+
+const GIBS_URL = (layer: string, level = 8) =>
+  `https://gibs.earthdata.nasa.gov/wmts/epsg3857/best/${layer}/default/${gibsDate()}/GoogleMapsCompatible_Level${level}/{z}/{y}/{x}.png`;
 
 // The Cesium Ion token is never shipped to the browser bundle; it is fetched
 // at runtime from the server-side `cesium-tiles` proxy.
