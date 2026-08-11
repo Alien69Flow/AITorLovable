@@ -1,60 +1,79 @@
-## Estado actual verificado
+# Globe, Markets & Agents — full repair plan
 
-- `GlobeDashboard.tsx` renderiza **solo** `GlobeScene.tsx` (react-globe.gl). `CesiumGlobe.tsx` existe y compila pero **no se usa** en ninguna parte.
-- El "duplicado de barras" en la vista Globe es real: hay un **dock de navegación flotante** (Markets/Feed/Alerts/Movers/Tension, líneas 241-260) que repite la `BottomNav` global de `Index.tsx`, más una **barra de ticker crypto propia** además del `LiveTicker`.
-- El `LegendPanel` ya lista Atmosphere/Clouds/Isobars/Wind/Temperature/Precipitation, pero **6 de esos toggles apuntan al mismo flag** (`weatherEnabled`): no son capas independientes. Faltan Earthquakes, Solar Activity y Marine Traffic.
-- El scroll del legend usa `no-scrollbar` (funciona pero sin barra visible).
-- **No existe** `useCredits.ts` ni configuración de wallet (`@reown/appkit` no está en `package.json`). `PricingModal.tsx` es estático, sin comprobación de tier.
-- Sí existe en backend la tabla `user_credits` con columna `paid_tier` (`registered | basic | pro | quantum`), que será la fuente de verdad del tier.
+Telegram is already fixed in this turn (the webhook was rejecting every Telegram
+update because of a secret-token check added during the security pass; it now
+only rejects when Telegram actually sends a wrong token).
 
----
+The rest is big, so here is how I propose to do it.
 
-## 1. Motor híbrido adaptativo
+## 1. Globe HUD (single tension indicator)
 
-Nuevo `src/components/globe/HybridGlobe.tsx`:
-- Usa `useIsMobile()`. Desktop → `CesiumGlobe`, móvil → `GlobeScene`.
-- Expone una **única interfaz de props** (capas activas, marcadores, `onHotspotClick`, `onReady`/`flyTo`, `kpIndex`) y la adapta a cada motor.
-- Cesium se carga con `React.lazy` + `Suspense` para que el bundle pesado no llegue nunca al móvil.
-- `GlobeDashboard` pasa a renderizar `HybridGlobe` en lugar de `GlobeScene`.
-- Se amplía `CesiumGlobeProps` para aceptar el mismo set de capas (weather overlays, fires, aircraft, markets, solar) y se unifica el tipo `LayerKey`.
+- Remove the left-hand tension widget and keep one merged indicator in the
+  centre of the globe.
+- Feed it real numbers: earthquakes (USGS), conflict/OSINT events, space weather
+  Kp, wildfires and outages — weighted score, live-updating, with a breakdown on
+  hover.
+- "Legend & Controls" panel collapsed by default on every device.
 
-## 2. Limpieza de barras y layout móvil
+## 2. Layers that must actually render
 
-- Eliminar el dock flotante inferior de `GlobeDashboard` (duplica `BottomNav`).
-- Conservar: ticker crypto superior + `LiveTicker` (una sola fila de eventos) + barra de estado inferior.
-- Restaurar el punto "LIVE" en **rojo** (`bg-red-500` + pulse) en `LiveTicker`.
-- Móvil: los tres botones flotantes (Tension / Legend / Navigate) ya existen; se convierten en un **bottom sheet** deslizable con scroll completo en lugar del overlay superior actual, y se garantiza que ningún panel de escritorio se monte en móvil.
+Right now several toggles exist but draw nothing. Each of these gets a real data
+source and a visible layer on the Cesium globe:
 
-## 3. Enumeración explícita de capas
+| Layer | Source |
+|---|---|
+| Clouds, Rain/Precipitation, Temperature, Wind, Pressure (isobars) | OpenWeatherMap tiles via the existing `openweather` proxy — fix the tile URL/alpha so they show without a toggle-off/on |
+| Rain radar | RainViewer frames |
+| Wildfires (incl. Spain/Europe) | NASA FIRMS VIIRS global (current feed is truncated) + Copernicus EFFIS for Europe |
+| Solar activity / aurora | NOAA SWPC Kp + ovation |
+| Orbital surveillance | Satellite TLE propagation (CelesTrak) |
+| Air traffic | OpenSky, global tiles instead of one bbox |
+| Marine traffic | AIS feed, global bbox |
+| Internet outages | Cloudflare Radar / IODA |
+| Ocean currents | NOAA OSCAR / RTOFS surface currents |
 
-Nuevo estado central de capas en `GlobeDashboard` (un objeto `layers` con una clave por capa, no flags compartidos):
+Each layer gets a small "no data / source down" state so a dead upstream is
+visible instead of an invisible layer.
 
-```text
-Atmospheric & Weather : atmosphere · clouds · isobars(pressure) · wind · temperature · precipitation
-Space & Cosmos        : solarActivity (Kp/NOAA + Sentry)            [PREMIUM]
-OSINT & Hazards       : wildfires(FIRMS) · earthquakes(USGS) · airTraffic(OpenSky) · marineTraffic [PREMIUM]
-Markets & Feeds       : marketData
-```
+## 3. Conflict layer (WorldMonitor / Liveuamap / ConflictRadar360 style)
 
-- `LegendPanel` se reescribe en secciones colapsables con **scrollbar vertical visible** (`overflow-y-auto` + estilo fino, se quita `no-scrollbar`).
-- Cada toggle mapea a su propia capa; en Cesium a su `ImageryLayer` (OWM `clouds_new`, `pressure_new`, `wind_new`, `temp_new`, `precipitation_new` vía el proxy `openweather`, RainViewer para radar) y en react-globe.gl a su equivalente ligero (textura/heatmap/puntos).
-- Capas premium: `isobars`, `wind`, `marineTraffic`, `solarActivity` (deep feed).
+- Ingest events from the WorldMonitor shared data already vendored in the repo
+  plus the live OSINT aggregator.
+- Each event is a map icon with a category emoji (💥 strike, 🚀 missile, 🛩️ air,
+  🚢 naval, 🔥 fire, ⚡ infrastructure, 🕊️ diplomacy …), plus a popup card with
+  time, location, source, reliability score, short summary and image when the
+  source provides one.
+- Filterable by category and reliability.
 
-## 4. Paywall Fase 1 (marcar + bloquear por tier)
+## 4. Markets & Polymarket done properly
 
-- Nuevo `src/hooks/useTier.ts`: lee la sesión de auth y consulta `user_credits.paid_tier`; devuelve `{ tier, hasAccess(required) }`. Invitado → `explorer`.
-- `LegendPanel` muestra un **badge de candado** en las capas premium.
-- Al pulsar una capa bloqueada: no se activa y se abre `PricingModal` con `reason` contextual ("La capa Wind requiere Architect").
-- Si el tier es suficiente, la capa se activa al instante en el globo híbrido.
-- `PricingModal` se conecta al tier actual (marca el plan activo). No se añade wallet ni Unlock en esta fase.
+- Restore the assets/markets surface: crypto, stocks, ETFs, commodities, FX
+  (the JSON universes already vendored under `worldmonitor/shared`).
+- Polymarket via its Gamma API: full multi-outcome markets, not just yes/no —
+  each outcome with its own price, 24h change, volume and liquidity, plus a
+  sparkline. Affiliate link kept.
 
-## 5. Cosmos: selector Sentry / NASA Eyes / Valhovey
+## 5. Agents + DeepSeek
 
-- `SolarSystemTab.tsx` gana un sub-selector de pestañas: **NASA Eyes**, **Sentry** (`sentry.artificialisabel.com`), **Valhovey** (`valhovey.github.io`), cada uno en iframe responsive con estado de carga y fallback "abrir en nueva pestaña" si el sitio bloquea el embebido.
-- El toggle "Solar Activity" del `LegendPanel` proyecta métricas de clima espacial (Kp de `useSpaceWeather` + NOAA) sobre el globo.
+- Register every agent that exists in `backend/agents` as a callable tool in the
+  `agenticworkflows` router (Manus, Accio, market analyzer, portfolio manager,
+  trading signals, security, social media, supervisor/orchestrator).
+- Add DeepSeek as a selectable oracle in the chat model list and route it in the
+  `chat` edge function using the `DEEPSEEK_API_KEY` already stored.
 
-## Notas técnicas
+## Order of work
 
-- Sin claves en el cliente: todas las teselas OWM y Cesium siguen pasando por las Edge Functions `openweather` y `cesium-tiles`.
-- Archivos tocados: `GlobeDashboard.tsx`, `LegendPanel.tsx`, `LiveTicker.tsx`, `GlobeScene.tsx`, `CesiumGlobe.tsx`, `PricingModal.tsx`, `SolarSystemTab.tsx`, + nuevos `HybridGlobe.tsx` y `useTier.ts`.
-- No se toca la Edge Function `openweather` salvo que falte alguna capa OWM en su allowlist (se comprobará al implementar).
+1. Globe HUD merge + legend collapsed + clouds/OWM tile fix (fast, visible).
+2. Remaining layers, one by one, with a data-source status line.
+3. Conflict icon layer.
+4. Markets + Polymarket multi-outcome.
+5. Agents routing + DeepSeek.
+
+## Notes / what I need from you
+
+- If you have the WorldMonitor fork URL and the other reference repos you
+  mentioned, drop the links — I will pull the exact conflict taxonomy and icon
+  set from them instead of inventing one.
+- Copernicus/EFFIS, Meteosat and Hispasat: EFFIS has an open WMS I can use
+  directly. Meteosat/Hispasat imagery needs an EUMETSAT account/API key — tell
+  me if you want that and I will request the credential.
