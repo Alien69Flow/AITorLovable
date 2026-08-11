@@ -3,7 +3,6 @@ import { LiveTicker } from "./LiveTicker";
 import { GlobeOverlay } from "./GlobeOverlay";
 import type { UnifiedHotspotData } from "../globe/GlobeScene";
 import { HybridGlobe } from "../globe/HybridGlobe";
-import { TacticalConsole } from "./TacticalConsole";
 import { LegendPanel, type LayerKey } from "./LegendPanel";
 import { NavigatePanel } from "./NavigatePanel";
 import { ChatFeedPanel } from "./ChatFeedPanel";
@@ -14,16 +13,18 @@ import { useUAPSightings } from "@/hooks/useUAPSightings";
 import { useTier } from "@/hooks/useTier";
 import { useAirTraffic } from "@/hooks/useAirTraffic";
 import { useMarineTraffic } from "@/hooks/useMarineTraffic";
+import { useInternetOutages } from "@/hooks/useInternetOutages";
+import { CONFLICT_ZONES } from "@/lib/geo-datasets";
 import {
   DEFAULT_ACTIVE_LAYERS,
   TIER_LABEL,
   layerDef,
   type EnvLayerKey,
 } from "@/lib/globe-layers";
-import { Cpu, Wifi, CircleCheck as CheckCircle2, Crosshair, Compass, Layers, Wrench } from "lucide-react";
+import { Cpu, Wifi, CircleCheck as CheckCircle2, Compass, Layers, Wrench } from "lucide-react";
 import { LedIndicator } from "./GlassPanels";
 
-type MobilePanel = "tension" | "legend" | "navigate" | "diagnostics" | null;
+type MobilePanel = "legend" | "navigate" | "diagnostics" | null;
 
 export function GlobeDashboard() {
   const [selectedHotspot, setSelectedHotspot] = useState<UnifiedHotspotData | null>(null);
@@ -44,6 +45,7 @@ export function GlobeDashboard() {
   // Air & Marine Traffic hooks
   const { flights, isLoading: airLoading, count: flightCount } = useAirTraffic();
   const { ships, isLoading: marineLoading, count: shipCount } = useMarineTraffic();
+  const { outages } = useInternetOutages(true);
 
   const [visibleLayers, setVisibleLayers] = useState<Set<LayerKey>>(
     new Set(["finance", "intel", "conflict", "geopolitical", "logistics", "cryptozoo", "convergence"])
@@ -97,6 +99,7 @@ export function GlobeDashboard() {
       tier={tier}
       hasAccess={hasAccess}
       onClose={onClose}
+      defaultCollapsed
     />
   );
 
@@ -151,13 +154,16 @@ export function GlobeDashboard() {
           spaceWeather={spaceWeather}
           earthquakeCount={earthquakes.length}
           nasaEventCount={nasaEvents.length}
+          conflictCount={CONFLICT_ZONES.length}
+          wildfireCount={nasaEvents.filter((e) => e.category.toLowerCase().includes("fire")).length}
+          outageCount={outages.length}
+          criticalIntelCount={osintEvents.filter((e) => e.severity === "CRITICAL").length}
         />
 
         {/* ============ MOBILE: corner buttons + bottom sheet ============ */}
         <div className="md:hidden">
           <div className="absolute top-2 left-2 z-30 flex flex-col gap-1.5 pointer-events-auto">
             {([
-              { id: "tension" as const, Icon: Crosshair, label: "Tension console" },
               { id: "legend" as const, Icon: Layers, label: "Legend and layers" },
               { id: "navigate" as const, Icon: Compass, label: "Navigate" },
               { id: "diagnostics" as const, Icon: Wrench, label: "Diagnostics" },
@@ -182,9 +188,6 @@ export function GlobeDashboard() {
               <div className="fixed inset-0 z-40 bg-black/40" onClick={() => setMobilePanel(null)} />
               <div className="fixed left-0 right-0 bottom-14 z-50 max-h-[72vh] overflow-y-auto legend-scroll rounded-t-2xl border-t border-slate-700/40 bg-slate-950/95 backdrop-blur-2xl p-3 pointer-events-auto animate-in slide-in-from-bottom duration-200">
                 <div className="mx-auto mb-2 h-1 w-10 rounded-full bg-slate-600/60" />
-                {mobilePanel === "tension" && (
-                  <TacticalConsole forceExpanded onClose={() => setMobilePanel(null)} />
-                )}
                 {mobilePanel === "legend" && legend(() => setMobilePanel(null))}
                 {mobilePanel === "navigate" && (
                   <NavigatePanel onNavigate={handleNavigate} forceOpen onClose={() => setMobilePanel(null)} />
@@ -199,7 +202,6 @@ export function GlobeDashboard() {
 
         {/* ============ DESKTOP: fixed left panels ============ */}
         <div className="hidden md:block absolute top-3 left-3 z-30 space-y-2.5 pointer-events-none">
-          <div className="pointer-events-auto"><TacticalConsole /></div>
           <div className="pointer-events-auto">{legend()}</div>
           <div className="pointer-events-auto"><NavigatePanel onNavigate={handleNavigate} /></div>
           <button
