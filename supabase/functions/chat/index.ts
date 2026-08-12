@@ -244,6 +244,50 @@ async function routeToGrok(model: string, processedMessages: unknown[]) {
 
 // Route to Anthropic API and convert stream to OpenAI-compatible SSE
 async function routeToAnthropic(model: string, processedMessages: unknown[]) {
+  return await routeToAnthropicImpl(model, processedMessages);
+}
+
+// Route to DeepSeek (OpenAI-compatible API)
+async function routeToDeepSeek(model: string, processedMessages: unknown[]) {
+  const DEEPSEEK_API_KEY = Deno.env.get("DEEPSEEK_API_KEY");
+  if (!DEEPSEEK_API_KEY) {
+    throw new Error("DEEPSEEK_API_KEY is not configured");
+  }
+
+  const map: Record<string, string> = {
+    "deepseek-v3": "deepseek-chat",
+    "deepseek-chat": "deepseek-chat",
+    "deepseek-reasoner": "deepseek-reasoner",
+  };
+  const requested = model.replace("deepseek/", "");
+  const dsModel = map[requested] ?? "deepseek-chat";
+
+  // DeepSeek is text-only: flatten any multimodal content to text
+  const textMessages = (processedMessages as Array<{ role: string; content: unknown }>).map((m) => ({
+    role: m.role,
+    content: Array.isArray(m.content)
+      ? (m.content as Array<{ type?: string; text?: string }>)
+          .filter((p) => p?.type === "text" && p.text)
+          .map((p) => p.text)
+          .join("\n")
+      : m.content,
+  }));
+
+  return await fetch("https://api.deepseek.com/chat/completions", {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${DEEPSEEK_API_KEY}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      model: dsModel,
+      messages: [{ role: "system", content: SYSTEM_PROMPT }, ...textMessages],
+      stream: true,
+    }),
+  });
+}
+
+async function routeToAnthropicImpl(model: string, processedMessages: unknown[]) {
   const ANTHROPIC_API_KEY = Deno.env.get("ANTHROPIC_API_KEY");
   if (!ANTHROPIC_API_KEY) {
     throw new Error("ANTHROPIC_API_KEY is not configured");
