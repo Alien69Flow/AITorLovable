@@ -442,6 +442,8 @@ Deno.serve(async (req) => {
         response = await routeToGrok(model, processedMessages);
       } else if (ANTHROPIC_MODELS.includes(model)) {
         response = await routeToAnthropic(model, processedMessages);
+      } else if (DEEPSEEK_MODELS.includes(model)) {
+        response = await routeToDeepSeek(model, processedMessages);
       } else {
         response = await routeToLovable(model, processedMessages);
       }
