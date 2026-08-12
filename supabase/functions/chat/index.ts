@@ -26,7 +26,19 @@ const ANTHROPIC_MODELS = [
   "anthropic/claude-sonnet-4",
 ];
 
-const ALLOWED_MODELS = [...LOVABLE_MODELS, ...GROK_MODELS, ...ANTHROPIC_MODELS];
+// DeepSeek models (direct DeepSeek API)
+const DEEPSEEK_MODELS = [
+  "deepseek/deepseek-v3",
+  "deepseek/deepseek-chat",
+  "deepseek/deepseek-reasoner",
+];
+
+const ALLOWED_MODELS = [
+  ...LOVABLE_MODELS,
+  ...GROK_MODELS,
+  ...ANTHROPIC_MODELS,
+  ...DEEPSEEK_MODELS,
+];
 
 // Validation constants
 const MAX_MESSAGES = 100;
