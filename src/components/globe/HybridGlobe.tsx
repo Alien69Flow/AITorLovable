@@ -1,6 +1,6 @@
 import { Suspense, lazy, useCallback, useEffect, useRef, useState } from "react";
 import { useIsMobile } from "@/hooks/use-mobile";
-import { GlobeScene, type UnifiedHotspotData } from "./GlobeScene";
+import { type UnifiedHotspotData } from "./GlobeScene";
 import type { EnvLayerKey } from "@/lib/globe-layers";
 import type { Earthquake } from "@/hooks/useEarthquakes";
 import type { NasaEvent } from "@/hooks/useNasaEvents";
@@ -61,22 +61,10 @@ export function HybridGlobe({
     setFlyTo({ lat, lon: lng, alt: Math.max(150_000, altitude * 6_371_000) });
   }, []);
 
-  // Expose the navigation function for the desktop (Cesium) engine.
+  // Single unified engine (Cesium) on every device.
   useEffect(() => {
-    if (isMobile) return;
     onReadyRef.current?.(cesiumNavigate);
-  }, [isMobile, cesiumNavigate]);
-
-  if (isMobile) {
-    return (
-      <GlobeScene
-        layers={layers}
-        onHotspotClick={onHotspotClick}
-        onReady={onReady}
-        externalMarkers={externalMarkers}
-      />
-    );
-  }
+  }, [cesiumNavigate]);
 
   return (
     <div className="relative w-full h-full">

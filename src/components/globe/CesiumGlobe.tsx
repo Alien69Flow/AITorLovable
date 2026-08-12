@@ -382,15 +382,15 @@ export function CesiumGlobe({
           position: Cartesian3.fromDegrees(0, ringLat, 80000 + ring * 30000),
           ellipse: {
             semiMajorAxis: new CallbackProperty(() => {
-              const elapsed = (Date.now() - startTime) % 6000;
-              const pulse = 1 + 0.15 * Math.sin((elapsed / 6000) * Math.PI * 2 + ring);
+              // Quantize time so major/minor callbacks always agree within a frame
+              const t = Math.floor((Date.now() - startTime) / 50) * 50;
+              const pulse = 1 + 0.15 * Math.sin(((t % 6000) / 6000) * Math.PI * 2 + ring);
               return baseRadius * pulse;
             }, false) as any,
             semiMinorAxis: new CallbackProperty(() => {
-              const elapsed = (Date.now() - startTime) % 6000;
-              const major = baseRadius * (1 + 0.15 * Math.sin((elapsed / 6000) * Math.PI * 2 + ring));
-              const minor = baseRadius * 0.6 * (1 + 0.15 * Math.sin((elapsed / 6000) * Math.PI * 2 + ring + 1));
-              return Math.min(minor, major);
+              const t = Math.floor((Date.now() - startTime) / 50) * 50;
+              const pulse = 1 + 0.15 * Math.sin(((t % 6000) / 6000) * Math.PI * 2 + ring);
+              return baseRadius * pulse * 0.6;
             }, false) as any,
             material: hexToColor(color, 0.03 + intensity * 0.05),
             outline: true,
@@ -427,14 +427,14 @@ export function CesiumGlobe({
         position: Cartesian3.fromDegrees(q.lon, q.lat, 0),
         ellipse: {
           semiMajorAxis: new CallbackProperty(() => {
-            const elapsed = (Date.now() - startTime) % 4000;
-            const pulse = 1 + 0.3 * Math.sin((elapsed / 4000) * Math.PI * 2);
+            const t = Math.floor((Date.now() - startTime) / 50) * 50;
+            const pulse = 1 + 0.3 * Math.sin(((t % 4000) / 4000) * Math.PI * 2);
             return baseRadius * pulse;
           }, false) as any,
           semiMinorAxis: new CallbackProperty(() => {
-            const elapsed = (Date.now() - startTime) % 4000;
-            const pulse = 1 + 0.3 * Math.sin((elapsed / 4000) * Math.PI * 2);
-            return baseRadius * pulse * 0.999;
+            const t = Math.floor((Date.now() - startTime) / 50) * 50;
+            const pulse = 1 + 0.3 * Math.sin(((t % 4000) / 4000) * Math.PI * 2);
+            return baseRadius * pulse * 0.98;
           }, false) as any,
           material: Color.fromCssColorString("#FF4444").withAlpha(
             Math.min(0.6, q.magnitude / 10)

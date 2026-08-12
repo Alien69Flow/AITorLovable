@@ -10,10 +10,23 @@ interface Region {
 }
 
 const REGIONS: Region[] = [
-  { label: "Middle East", flag: "🇸🇦", lat: 28, lng: 45, altitude: 1.8 },
+  { label: "DAO HQ — Zaragoza", flag: "🛸", lat: 41.65, lng: -0.88, altitude: 0.9 },
+  { label: "Spain", flag: "🇪🇸", lat: 40.4, lng: -3.7, altitude: 1.2 },
+  { label: "France", flag: "🇫🇷", lat: 46.6, lng: 2.4, altitude: 1.3 },
+  { label: "United Kingdom", flag: "🇬🇧", lat: 54.0, lng: -2.5, altitude: 1.3 },
+  { label: "Germany", flag: "🇩🇪", lat: 51.2, lng: 10.4, altitude: 1.3 },
   { label: "Europe", flag: "🇪🇺", lat: 48, lng: 10, altitude: 2.0 },
-  { label: "Americas", flag: "🇺🇸", lat: 35, lng: -90, altitude: 2.5 },
-  { label: "Asia", flag: "🇨🇳", lat: 35, lng: 105, altitude: 2.2 },
+  { label: "Ukraine", flag: "🇺🇦", lat: 48.4, lng: 31.2, altitude: 1.4 },
+  { label: "Russia", flag: "🇷🇺", lat: 58.0, lng: 60.0, altitude: 2.6 },
+  { label: "Israel", flag: "🇮🇱", lat: 31.5, lng: 34.9, altitude: 1.0 },
+  { label: "Iran", flag: "🇮🇷", lat: 32.4, lng: 53.7, altitude: 1.7 },
+  { label: "Middle East", flag: "🇸🇦", lat: 28, lng: 45, altitude: 1.8 },
+  { label: "United States", flag: "🇺🇸", lat: 39, lng: -98, altitude: 2.2 },
+  { label: "Americas / LatAm", flag: "🇧🇷", lat: -12, lng: -55, altitude: 2.4 },
+  { label: "China", flag: "🇨🇳", lat: 35, lng: 105, altitude: 2.2 },
+  { label: "Taiwan", flag: "🇹🇼", lat: 23.7, lng: 121, altitude: 1.0 },
+  { label: "India", flag: "🇮🇳", lat: 22, lng: 79, altitude: 2.0 },
+  { label: "Korean Peninsula", flag: "🇰🇷", lat: 37.5, lng: 127.5, altitude: 1.2 },
   { label: "Africa", flag: "🇿🇦", lat: 5, lng: 20, altitude: 2.3 },
   { label: "Oceania", flag: "🇦🇺", lat: -25, lng: 135, altitude: 2.2 },
 ];
@@ -27,7 +40,7 @@ interface NavigatePanelProps {
 }
 
 export function NavigatePanel({ onNavigate, forceOpen, onClose }: NavigatePanelProps) {
-  const [internalOpen, setInternalOpen] = useState(true);
+  const [internalOpen, setInternalOpen] = useState(false);
   const open = forceOpen !== undefined ? forceOpen : internalOpen;
 
   return (
