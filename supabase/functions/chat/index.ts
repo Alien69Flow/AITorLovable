@@ -465,6 +465,34 @@ Deno.serve(async (req) => {
       });
 
       const classified = classifyProviderError(response.status, errorText);
+
+      // Third-party provider key out of credits / unauthorized → fall back to
+      // the Lovable AI gateway so the chat keeps working.
+      const isThirdParty =
+        GROK_MODELS.includes(model) ||
+        ANTHROPIC_MODELS.includes(model) ||
+        DEEPSEEK_MODELS.includes(model);
+
+      if (isThirdParty && (classified.status === 402 || classified.status === 401 || classified.status === 502)) {
+        console.log(`Falling back to Lovable gateway for model: ${model}`);
+        try {
+          const fallback = await routeToLovable(FALLBACK_MODEL, processedMessages);
+          if (fallback.ok) {
+            return new Response(fallback.body, {
+              headers: { ...corsHeaders, "Content-Type": "text/event-stream" },
+            });
+          }
+          const fbText = await fallback.text();
+          const fbClassified = classifyProviderError(fallback.status, fbText);
+          return new Response(JSON.stringify(fbClassified.body), {
+            status: fbClassified.status,
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+          });
+        } catch (fbErr) {
+          console.error("Fallback failed:", fbErr instanceof Error ? fbErr.message : "Unknown");
+        }
+      }
+
       return new Response(
         JSON.stringify(classified.body),
         { status: classified.status, headers: { ...corsHeaders, "Content-Type": "application/json" } }
