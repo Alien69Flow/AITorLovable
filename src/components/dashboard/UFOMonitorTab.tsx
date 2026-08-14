@@ -3,7 +3,6 @@ import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { AlertTriangle, Radio, Eye, MapPin, Clock, ExternalLink, RefreshCw, Loader2 } from "lucide-react";
-import { supabase } from "@/integrations/supabase/client";
 import { fetchUapSightingsRows, isUapSightingsTableMissing } from "@/lib/uap-sightings";
 import { toast } from "sonner";
 
@@ -82,17 +81,12 @@ export function UFOMonitorTab() {
       return;
     }
 
+    // The ufo-feed ingestion function is scheduler-only (shared secret) and
+    // returns 401 to browsers by design — the client just re-reads the table.
     setRefreshing(true);
     try {
-      const { data, error } = await supabase.functions.invoke('ufo-feed');
-      if (error) throw error;
-      
-      if (data?.success) {
-        toast.success(`Feed actualizado: ${data.count} reportes encontrados`);
-        await fetchSightings();
-      } else {
-        toast.error(data?.error || 'Error actualizando feed');
-      }
+      await fetchSightings();
+      toast.success('Feed sincronizado');
     } catch {
       toast.error('Error conectando con fuentes de datos');
     } finally {
