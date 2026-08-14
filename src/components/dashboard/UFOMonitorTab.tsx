@@ -3,7 +3,6 @@ import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { AlertTriangle, Radio, Eye, MapPin, Clock, ExternalLink, RefreshCw, Loader2 } from "lucide-react";
-import { supabase } from "@/integrations/supabase/client";
 import { fetchUapSightingsRows, isUapSightingsTableMissing } from "@/lib/uap-sightings";
 import { toast } from "sonner";
 
