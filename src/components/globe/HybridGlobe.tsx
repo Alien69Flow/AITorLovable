@@ -1,4 +1,5 @@
-import { Suspense, lazy, useCallback, useEffect, useRef, useState } from "react";
+import { Suspense, useCallback, useEffect, useRef, useState } from "react";
+import { lazyWithRetry } from "@/lib/lazy-retry";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { type UnifiedHotspotData } from "./GlobeScene";
 import type { EnvLayerKey } from "@/lib/globe-layers";
@@ -10,7 +11,7 @@ import type { Ship } from "@/hooks/useMarineTraffic";
 import { useSatellites } from "@/hooks/useSatellites";
 import { useInternetOutages } from "@/hooks/useInternetOutages";
 
-const CesiumGlobe = lazy(() =>
+const CesiumGlobe = lazyWithRetry(() =>
   import("./CesiumGlobe").then((m) => ({ default: m.CesiumGlobe }))
 );
 
