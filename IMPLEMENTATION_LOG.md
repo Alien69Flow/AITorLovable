@@ -34,3 +34,15 @@
 - Supported chain(s), Reown project ID, accepted asset, price and receiving wallet.
 - NFT contract, token ID rules and the access tier granted by ownership.
 - Production deployment ownership and the final Telegram-to-web payment journey.
+
+## Paywall foundation — 15 August 2026
+
+### Completed
+
+- Added a service-role-only data model for verified wallets, payment orders and access entitlements.
+- Added an authenticated access-status endpoint so the web and Telegram flows can consume the same access source.
+- Added the owner handoff document with configuration values and the server-side verification sequence.
+
+### Deliberate boundary
+
+- No payment, NFT possession or wallet is accepted as valid until owner-supplied network and billing rules are configured and verified server-side.
