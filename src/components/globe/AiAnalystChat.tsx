@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect, useCallback } from "react";
-import { Brain, Send, User, Bot, Trash2, X, Sparkles, Loader2 } from "lucide-react";
+import { Brain, Send, User, Bot, Trash2, X, Sparkles, Loader as Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 interface ChatMessage {

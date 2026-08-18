@@ -1,18 +1,5 @@
 import { useState, useMemo, useRef, useEffect, Suspense, lazy } from "react";
-import {
-  Plane,
-  Ship,
-  Building2,
-  User,
-  Globe,
-  AlertOctagon,
-  Ban,
-  Network,
-  Maximize2,
-  Minimize2,
-  X,
-  Loader2,
-} from "lucide-react";
+import { Plane, Ship, Building2, User, Globe, OctagonAlert as AlertOctagon, Ban, Network, Maximize2, Minimize2, X, Loader as Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const ForceGraph2D = lazy(() => import("react-force-graph-2d"));
