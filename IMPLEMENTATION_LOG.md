@@ -46,3 +46,20 @@
 ### Deliberate boundary
 
 - No payment, NFT possession or wallet is accepted as valid until owner-supplied network and billing rules are configured and verified server-side.
+
+## Wallet connection and public DAO references — 19 August 2026
+
+### Completed
+
+- Recovered the public Reown configuration, supported EVM networks, DAO references and OpenSea profiles from the official AlienFlowSpace source repository.
+- Added the Reown AppKit wallet connection to the AiTor top navigation. It supports Polygon as the default network, plus Ethereum, Arbitrum, Base and BSC.
+- Shows the connected wallet's abbreviated public address and opens the account screen on a subsequent click.
+- Documented the official public references and the remaining verification requirement for NFT access.
+
+### Validation
+
+- Vite production build completed successfully.
+
+### Still intentionally pending
+
+- A specific NFT contract address, token eligibility rule, payment recipient, asset and price. OpenSea profile URLs alone cannot be used to verify ownership or grant access.

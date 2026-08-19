@@ -9,15 +9,26 @@ This foundation is ready for the owner decisions. It deliberately grants no acce
 - `access_entitlements`: is the source of truth for paid access after server-side verification.
 - `access-status`: authenticated endpoint that returns active entitlements for the current user.
 
-## What the owner must decide
+## Public configuration recovered from AlienFlow sources
+
+- Reown project ID: configured in the public AlienFlowSpace app. AiTor uses it as a fallback and allows `VITE_REOWN_PROJECT_ID` to override it per deployment.
+- Primary network: Polygon (`eip155:137`). The wallet modal also supports Ethereum, Arbitrum, Base and BSC, matching the public AlienFlowSpace configuration.
+- DAO references on Polygon:
+  - AlienFlowSpace DAO: `0xCA497d631DB260ebFFF4bA71AEAc3201ae972a77`
+  - Alien69Flow DAO: `0x2A1F32A807b3f8a43F9473C1FA7d11881A579b16`
+- Public OpenSea profiles: `Alien69Flow` and `AlienFlowSpace`.
+
+These references identify public DAO and marketplace profiles, but **they do not identify a specific NFT smart contract or access rule**. The paywall must not use a marketplace profile as proof of ownership.
+
+## What the owner must still decide
 
 1. `PAYWALL_CHAIN_ID`: EVM CAIP-2 identifier, for example `eip155:137`.
 2. `PAYWALL_ASSET`: payment asset, for example `USDC`.
 3. `PAYWALL_RECIPIENT_ADDRESS`: public treasury address that receives payments.
 4. `PAYWALL_ARCHITECT_PRICE`: price in the asset's base units or a documented decimal convention.
 5. `PAYWALL_ACCESS_DAYS`: access duration after a confirmed payment.
-6. `VITE_REOWN_PROJECT_ID`: Reown Project ID for the web client.
-7. Optional NFT: contract address, chain and membership rule.
+6. Optional override: `VITE_REOWN_PROJECT_ID` for a separate AiTor Reown project.
+7. NFT access: contract address, chain and membership rule for each collection.
 
 ## Implementation order after owner confirmation
 

@@ -1,6 +1,7 @@
 import { Button } from "@/components/ui/button";
 import { Bot, Radio, Orbit, Globe, BarChart3, Settings, Wallet, LogOut, LogIn } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
+import { useAppKit, useAppKitAccount } from "@reown/appkit/react";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import alienflowLogo from "@/assets/alienflow-logo.webp";
@@ -22,6 +23,8 @@ interface TopNavBarProps {
 
 export function TopNavBar({ activeTab, onTabChange }: TopNavBarProps) {
   const { user, signOut } = useAuth();
+  const { open } = useAppKit();
+  const { address, isConnected } = useAppKitAccount();
   const navigate = useNavigate();
 
   const handleSignOut = async () => {
@@ -30,10 +33,10 @@ export function TopNavBar({ activeTab, onTabChange }: TopNavBarProps) {
   };
 
   const handleConnectWallet = () => {
-    toast.info("Conectar Wallet disponible próximamente", {
-      description: "Desbloquea el modo Nexo Soberano con Web3",
-    });
+    open({ view: isConnected ? "Account" : "Connect" });
   };
+
+  const shortAddress = address ? `${address.slice(0, 6)}...${address.slice(-4)}` : "Wallet";
 
   return (
     <header className="w-full bg-card/90 backdrop-blur-xl border-b border-border/40 z-50 shrink-0">
@@ -76,7 +79,7 @@ export function TopNavBar({ activeTab, onTabChange }: TopNavBarProps) {
             className="h-7 px-2 md:px-3 text-[10px] font-heading tracking-wider border-primary/30 bg-primary/5 text-primary hover:bg-primary/15 hover:border-primary/50 transition-all uppercase"
           >
             <Wallet className="h-3.5 w-3.5 md:mr-1" />
-            <span className="hidden lg:inline">Wallet</span>
+            <span className="hidden lg:inline">{shortAddress}</span>
           </Button>
 
           {user ? (
