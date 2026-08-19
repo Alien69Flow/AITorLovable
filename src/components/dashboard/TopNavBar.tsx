@@ -35,13 +35,13 @@ export function TopNavBar({ activeTab, onTabChange }: TopNavBarProps) {
   };
 
   const handleConnectWallet = async () => {
-    if (!isConnected) {
-      await open({ view: "Connect" });
+    if (!user) {
+      toast.info("Inicia sesión antes de conectar tu wallet");
+      navigate("/auth");
       return;
     }
-    if (!user) {
-      toast.info("Inicia sesión para verificar tu wallet");
-      navigate("/auth");
+    if (!isConnected) {
+      await open({ view: "Connect" });
       return;
     }
     if (isVerified) {
