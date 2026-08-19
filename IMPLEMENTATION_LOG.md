@@ -63,3 +63,16 @@
 ### Still intentionally pending
 
 - A specific NFT contract address, token eligibility rule, payment recipient, asset and price. OpenSea profile URLs alone cannot be used to verify ownership or grant access.
+
+## Secure wallet linking — 19 August 2026
+
+### Completed
+
+- Added one-time, expiring wallet-verification challenges in Supabase.
+- Added the authenticated `wallet-link` Edge Function. It verifies an EVM signature on the server before associating a public wallet address with the logged-in user.
+- Updated the wallet button to guide the user through connect → sign → verified status.
+- Updated tier resolution to consume confirmed backend entitlements in addition to the existing credit tier.
+
+### Deployment boundary
+
+- The migration and Edge Functions require deployment by the owner of the Supabase project. No service key, seed phrase or private key is required from Aitor or from a wallet holder.

@@ -8,6 +8,22 @@ This foundation is ready for the owner decisions. It deliberately grants no acce
 - `access_orders`: records a requested crypto payment or NFT verification.
 - `access_entitlements`: is the source of truth for paid access after server-side verification.
 - `access-status`: authenticated endpoint that returns active entitlements for the current user.
+- `wallet-link`: authenticated endpoint that creates a five-minute challenge and verifies an EVM wallet signature before linking it to the logged-in account.
+- The web header now connects through Reown and asks the connected user to sign the ownership proof once.
+
+## Deployment required
+
+The web build is ready, but the verification endpoint only becomes live after a Supabase owner deploys the migration and functions to project `wkdtvrxavkhbifjtvvdw`:
+
+```bash
+supabase login
+supabase link --project-ref wkdtvrxavkhbifjtvvdw
+supabase db push
+supabase functions deploy access-status
+supabase functions deploy wallet-link
+```
+
+`SUPABASE_SERVICE_ROLE_KEY` is supplied by Supabase to deployed Edge Functions. It must never be added to the website, GitHub, Telegram or a `.env` committed to the repository.
 
 ## Public configuration recovered from AlienFlow sources
 
