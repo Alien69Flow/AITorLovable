@@ -7,20 +7,32 @@ const corsHeaders = {
 
 async function fetchPolymarketEvents() {
   try {
-    const res = await fetch("https://gamma-api.polymarket.com/events?closed=false&limit=20&active=true&order=volume24hr&ascending=false");
+    const res = await fetch("https://gamma-api.polymarket.com/events?closed=false&limit=30&active=true&order=volume24hr&ascending=false");
     if (!res.ok) throw new Error(`Polymarket API error: ${res.status}`);
     const events = await res.json();
     return events.map((event: any) => {
       const market = event.markets?.[0];
+      const liquidity = market?.liquidity ?? 0;
+      const volume24hr = market?.volume24hr ?? 0;
+      const totalVolume = market?.volume ?? 0;
+      const bestBid = market?.bestBid ?? null;
+      const bestAsk = market?.bestAsk ?? null;
+      const spread = bestBid && bestAsk ? (bestAsk - bestBid).toFixed(4) : null;
+      const outcomes = market?.outcomes ? JSON.parse(market.outcomes) : null;
+      const outcomePrices = market?.outcomePrices ? JSON.parse(market.outcomePrices) : null;
       return {
         id: event.id || crypto.randomUUID(),
         title: event.title || "Unknown Event",
         description: event.description?.substring(0, 200) || "",
         category: event.tag || "General",
-        yesPrice: market?.outcomePrices ? JSON.parse(market.outcomePrices)[0] : null,
-        noPrice: market?.outcomePrices ? JSON.parse(market.outcomePrices)[1] : null,
-        volume: market?.volume24hr || 0,
-        totalVolume: market?.volume || 0,
+        outcomes: outcomes,
+        outcomePrices: outcomePrices,
+        liquidity: liquidity,
+        volume24hr: volume24hr,
+        totalVolume: totalVolume,
+        bestBid: bestBid,
+        bestAsk: bestAsk,
+        spread: spread,
         endDate: event.endDate || null,
         image: event.image || null,
         slug: event.slug || null,
