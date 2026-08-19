@@ -87,6 +87,7 @@
 
 - Added the production environment template and M1 go-live checklist.
 - Changed Telegram webhook validation to fail closed when its secret is missing or invalid.
+- Replaced the broken Telegram short-name Mini App link with a configurable direct Web App button.
 
 ### Owner-only activation
 

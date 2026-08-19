@@ -22,14 +22,15 @@ These checks prove that the public routes exist. They do not prove that private 
      -d 'allowed_updates=["message"]'
    ```
 
-4. In BotFather, confirm the Mini App URL is `https://t.me/Alien69Bot/app` and configure group privacy according to the intended community behaviour.
-5. Test from a real Telegram account:
+4. Set `TELEGRAM_MINI_APP_URL` to the public HTTPS URL of the AiTor Mini App (default: `https://aitor.alienflow.space`). The `/app` command sends a direct Telegram Web App button, so it does not depend on an unregistered BotFather short name such as `/app`.
+5. In BotFather, configure group privacy according to the intended community behaviour.
+6. Test from a real Telegram account:
    - `/start` returns the welcome message;
    - a normal message receives an AI response;
    - `/app` opens the Mini App;
    - `/manus <question>` receives its asynchronous callback;
    - an invalid webhook request is rejected with `401`.
-6. Check the hosting logs and Telegram's `getWebhookInfo` after the test. Pending updates and last webhook errors must be zero.
+7. Check the hosting logs and Telegram's `getWebhookInfo` after the test. Pending updates and last webhook errors must be zero.
 
 ## Monetization boundary
 
