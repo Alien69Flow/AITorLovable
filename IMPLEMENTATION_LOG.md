@@ -76,3 +76,18 @@
 ### Deployment boundary
 
 - The migration and Edge Functions require deployment by the owner of the Supabase project. No service key, seed phrase or private key is required from Aitor or from a wallet holder.
+
+## Module 1 production readiness — 19 August 2026
+
+### Verified public routes
+
+- AiTor domain, Telegram bot, Telegram Mini App and the deployed POST-only webhook route are reachable.
+
+### Completed in code
+
+- Added the production environment template and M1 go-live checklist.
+- Changed Telegram webhook validation to fail closed when its secret is missing or invalid.
+
+### Owner-only activation
+
+- Configure encrypted production variables, register Telegram's webhook secret, deploy, and run the real-account acceptance test described in `docs/M1_TELEGRAM_GO_LIVE.md`.
