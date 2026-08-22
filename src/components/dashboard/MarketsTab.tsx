@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { RefreshCw, ExternalLink, Search, TrendingUp, BarChart3 } from "lucide-react";
+import { RefreshCw, ExternalLink, Search, TrendingUp, ChartBar as BarChart3, Droplets } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 
@@ -11,10 +11,14 @@ interface Market {
   title: string;
   description: string;
   category: string;
-  yesPrice: string | null;
-  noPrice: string | null;
-  volume: number;
+  outcomes: string[] | null;
+  outcomePrices: string[] | null;
+  liquidity: number;
+  volume24hr: number;
   totalVolume: number;
+  bestBid: number | null;
+  bestAsk: number | null;
+  spread: string | null;
   endDate: string | null;
   image: string | null;
   slug: string | null;
@@ -22,7 +26,6 @@ interface Market {
 
 const CATEGORIES = ["All", "Politics", "Crypto", "Sports", "Tech", "Culture", "World"];
 
-// Polymarket referral / affiliate code. Replace `aitor` with the official DAO referral when issued.
 const POLYMARKET_REF = "aitor";
 
 const formatVolume = (n: number | null | undefined) => {
@@ -54,7 +57,7 @@ export function MarketsTab() {
     }
   };
 
-  useEffect(() => { fetchMarkets(); }, []);
+  useEffect(() => { fetchMarkets(); const interval = setInterval(fetchMarkets, 60000); return () => clearInterval(interval); }, []);
 
   const filtered = markets.filter(m => {
     const matchCat = category === "All" || m.category?.toLowerCase().includes(category.toLowerCase());
@@ -64,7 +67,6 @@ export function MarketsTab() {
 
   return (
     <div className="flex-1 flex flex-col min-h-0 p-4">
-      {/* Header */}
       <div className="flex items-center justify-between mb-4">
         <div className="flex items-center gap-2">
           <BarChart3 className="w-4 h-4 text-primary" />
@@ -77,7 +79,6 @@ export function MarketsTab() {
         </Button>
       </div>
 
-      {/* Search */}
       <div className="relative mb-3">
         <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground/40" />
         <Input
@@ -88,7 +89,6 @@ export function MarketsTab() {
         />
       </div>
 
-      {/* Category pills */}
       <div className="flex gap-1 mb-4 flex-wrap">
         {CATEGORIES.map(cat => (
           <button
@@ -105,7 +105,6 @@ export function MarketsTab() {
         ))}
       </div>
 
-      {/* Markets grid */}
       <div className="flex-1 overflow-y-auto">
         {loading && markets.length === 0 && (
           <div className="flex items-center justify-center py-12">
@@ -115,8 +114,9 @@ export function MarketsTab() {
 
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
           {filtered.map((market) => {
-            const yesPercent = market.yesPrice ? Math.round(parseFloat(market.yesPrice) * 100) : null;
-            const noPercent = market.noPrice ? Math.round(parseFloat(market.noPrice) * 100) : null;
+            const outcomes = market.outcomes || [];
+            const prices = market.outcomePrices || [];
+            const hasMultiple = outcomes.length > 2;
             return (
               <div
                 key={market.id}
@@ -136,38 +136,47 @@ export function MarketsTab() {
                   </div>
                 </div>
 
-                {/* YES/NO bars */}
-                {yesPercent !== null && noPercent !== null && (
+                {/* Outcome prices with liquidity */}
+                {prices.length > 0 && (
                   <div className="space-y-1.5 mb-3">
-                    <div className="flex items-center gap-2">
-                      <span className="text-[9px] font-mono text-secondary w-7">YES</span>
-                      <div className="flex-1 h-2.5 bg-muted/20 rounded-full overflow-hidden">
-                        <div className="h-full bg-secondary/80 rounded-full transition-all" style={{ width: `${yesPercent}%` }} />
-                      </div>
-                      <span className="text-[11px] font-mono font-bold text-secondary w-10 text-right">{yesPercent}%</span>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <span className="text-[9px] font-mono text-destructive w-7">NO</span>
-                      <div className="flex-1 h-2.5 bg-muted/20 rounded-full overflow-hidden">
-                        <div className="h-full bg-destructive/60 rounded-full transition-all" style={{ width: `${noPercent}%` }} />
-                      </div>
-                      <span className="text-[11px] font-mono font-bold text-destructive w-10 text-right">{noPercent}%</span>
-                    </div>
+                    {outcomes.slice(0, hasMultiple ? 5 : 2).map((outcome, i) => {
+                      const price = prices[i] ? parseFloat(prices[i]) : null;
+                      const percent = price !== null ? Math.round(price * 100) : null;
+                      return (
+                        <div key={i} className="flex items-center gap-2">
+                          <span className="text-[9px] font-mono text-muted-foreground/70 w-16 truncate" title={outcome}>{outcome}</span>
+                          <div className="flex-1 h-2.5 bg-muted/20 rounded-full overflow-hidden">
+                            <div
+                              className={`h-full rounded-full transition-all ${i === 0 ? "bg-cyan-500/70" : i === 1 ? "bg-amber-500/60" : "bg-violet-500/50"}`}
+                              style={{ width: `${percent ?? 0}%` }}
+                            />
+                          </div>
+                          <span className="text-[11px] font-mono font-bold text-foreground/80 w-10 text-right">{percent !== null ? `${percent}%` : "—"}</span>
+                        </div>
+                      );
+                    })}
                   </div>
                 )}
 
-                {/* Footer */}
-                <div className="flex items-center justify-between mt-auto pt-2 border-t border-border/20">
-                  <div className="flex items-center gap-2">
-                    <TrendingUp className="w-3 h-3 text-muted-foreground/40" />
-                    <span className="text-[9px] font-mono text-muted-foreground/50">Vol: {formatVolume(market.totalVolume || market.volume)}</span>
+                {/* Liquidity + Volume + Spread */}
+                <div className="flex items-center gap-3 mt-auto pt-2 border-t border-border/20">
+                  <div className="flex items-center gap-1.5">
+                    <Droplets className="w-3 h-3 text-cyan-400/60" />
+                    <span className="text-[9px] font-mono text-cyan-300/70">Liq: {formatVolume(market.liquidity)}</span>
                   </div>
+                  <div className="flex items-center gap-1.5">
+                    <TrendingUp className="w-3 h-3 text-muted-foreground/40" />
+                    <span className="text-[9px] font-mono text-muted-foreground/50">Vol: {formatVolume(market.totalVolume || market.volume24hr)}</span>
+                  </div>
+                  {market.spread && (
+                    <span className="text-[8px] font-mono text-muted-foreground/40">Spr: {market.spread}</span>
+                  )}
                   {market.slug && (
                     <a
                       href={`https://polymarket.com/event/${market.slug}?ref=${POLYMARKET_REF}`}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="flex items-center gap-1 text-[9px] font-mono text-primary/60 hover:text-primary transition-colors"
+                      className="flex items-center gap-1 text-[9px] font-mono text-primary/60 hover:text-primary transition-colors ml-auto"
                     >
                       Trade <ExternalLink className="w-2.5 h-2.5" />
                     </a>

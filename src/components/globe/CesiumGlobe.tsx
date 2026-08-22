@@ -241,28 +241,43 @@ export function CesiumGlobe({
       console.warn("Skybox init failed, using default stars:", e);
     }
 
-    // Base satellite imagery — always pushed to the BOTTOM of the stack so any
-    // weather/OSINT overlay added meanwhile stays visible above it.
-    ArcGisMapServerImageryProvider.fromUrl(
-      "https://services.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer"
-    ).then((provider) => {
-      if (viewer.isDestroyed()) return;
-      const base = viewer.imageryLayers.addImageryProvider(provider);
-      viewer.imageryLayers.lowerToBottom(base);
-    }).catch((e: any) => console.warn("ArcGIS base imagery failed:", e));
-
-    // Night lights, just above the base layer.
-    IonImageryProvider.fromAssetId(3812).then((provider) => {
-      if (viewer.isDestroyed()) return;
-      const nl = viewer.imageryLayers.addImageryProvider(provider);
-      nl.dayAlpha = 0.0; nl.nightAlpha = 0.9; nl.brightness = 2.0;
-      viewer.imageryLayers.lowerToBottom(nl);
-      viewer.imageryLayers.raise(nl);
-    }).catch((e: any) => console.warn("Night lights failed:", e));
-
     // NO atmosphere ellipsoid entity — using Cesium's built-in skyAtmosphere instead
 
     viewerRef.current = viewer;
+
+    // Deterministic async init: base → night lights → (env layers effect runs separately).
+    // No parallel .then() chains — everything is awaited in order so removeAll() never
+    // wipes overlays that a faster-resolving promise might have already added.
+    (async () => {
+      try {
+        // 1. Clear any default layers ONCE at the start.
+        viewer.imageryLayers.removeAll();
+
+        // 2. Base satellite imagery FIRST (bottom of stack).
+        const baseProvider = await ArcGisMapServerImageryProvider.fromUrl(
+          "https://services.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer"
+        );
+        if (viewer.isDestroyed()) return;
+        const baseLayer = viewer.imageryLayers.addImageryProvider(baseProvider);
+        viewer.imageryLayers.lowerToBottom(baseLayer);
+
+        // 3. Night lights SECOND (above base, below weather overlays).
+        try {
+          const nlProvider = await IonImageryProvider.fromAssetId(3812);
+          if (viewer.isDestroyed()) return;
+          const nl = viewer.imageryLayers.addImageryProvider(nlProvider);
+          nl.dayAlpha = 0.0;
+          nl.nightAlpha = 0.9;
+          nl.brightness = 2.0;
+          viewer.imageryLayers.lowerToBottom(nl);
+          viewer.imageryLayers.raise(nl);
+        } catch (e: any) {
+          console.warn("Night lights failed:", e);
+        }
+      } catch (e: any) {
+        console.warn("ArcGIS base imagery failed:", e);
+      }
+    })();
 
     // Click handler
     const handler = new ScreenSpaceEventHandler(viewer.scene.canvas);
@@ -378,7 +393,7 @@ export function CesiumGlobe({
     }
   }, [envLayers]);
 
-  // Tesla Aurora — dynamic polar rings reacting to Kp
+  // Tesla Aurora — dynamic polar rings reacting to Kp + solarActivity layer toggle
   useEffect(() => {
     const viewer = viewerRef.current;
     if (!viewer || viewer.isDestroyed()) return;
@@ -390,7 +405,8 @@ export function CesiumGlobe({
     });
     teslaAuraRef.current = [];
 
-    if (kpIndex <= 3) return;
+    const active = envLayers ?? new Set<EnvLayerKey>();
+    if (kpIndex <= 3 || !active.has("solarActivity")) return;
 
     const intensity = Math.min((kpIndex - 3) / 6, 1);
     const startTime = Date.now();
@@ -434,7 +450,7 @@ export function CesiumGlobe({
         teslaAuraRef.current.push(entityId);
       }
     });
-  }, [kpIndex]);
+  }, [kpIndex, envLayers]);
 
   // Earthquake entities — pulsing red rings
   useEffect(() => {

@@ -1,9 +1,48 @@
 import { useState } from "react";
-import { Settings, Wallet, Key, Shield, User, Radio, Sparkles } from "lucide-react";
+import { Settings, Wallet, Key, Shield, User, Radio, Sparkles, ExternalLink, Globe } from "lucide-react";
 import { OsintConsole } from "./OsintConsole";
 import { PricingModal } from "./PricingModal";
 
 type Tab = "dao" | "osint";
+
+const DAO_LINKS = [
+  {
+    label: "AlienFlow DAO",
+    url: "https://www.alienflow.space",
+    desc: "Official website",
+    logo: "/alienflow-logo.webp",
+  },
+  {
+    label: "DAO Docs",
+    url: "https://alienflowspace.gitbook.io/DAO",
+    desc: "GitBook documentation",
+    logo: "",
+  },
+  {
+    label: "ADEX",
+    url: "https://www.alienflow.space/adex",
+    desc: "DEX & auto-trade engine",
+    logo: "",
+  },
+  {
+    label: "ACE",
+    url: "https://www.alienflow.space/ace",
+    desc: "Autonomous Cognitive Engine",
+    logo: "",
+  },
+  {
+    label: "ATRIP",
+    url: "https://www.alienflow.space/atrip",
+    desc: "ATRIP protocol",
+    logo: "",
+  },
+  {
+    label: "GitHub",
+    url: "https://github.com/Alien69Flow/AiTor",
+    desc: "Source repository",
+    logo: "",
+  },
+];
 
 export function SystemTab() {
   const [tab, setTab] = useState<Tab>("osint");
@@ -46,17 +85,70 @@ export function SystemTab() {
       {tab === "osint" ? (
         <OsintConsole />
       ) : (
-        <div className="flex-1 flex items-center justify-center p-6">
-          <div className="max-w-md w-full space-y-6 text-center">
-            <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-primary/10 border border-primary/20 mx-auto">
-              <Settings className="h-8 w-8 text-primary" />
+        <div className="flex-1 flex flex-col items-center justify-start p-6 overflow-y-auto">
+          <div className="max-w-2xl w-full space-y-6">
+            {/* Header */}
+            <div className="text-center space-y-3">
+              <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-primary/10 border border-primary/20 mx-auto overflow-hidden">
+                <img
+                  src="/alienflow-logo.webp"
+                  alt="AlienFlow DAO"
+                  className="w-12 h-12 object-contain"
+                  onError={(e) => {
+                    (e.target as HTMLImageElement).style.display = 'none';
+                    const parent = (e.target as HTMLImageElement).parentElement;
+                    if (parent) parent.innerHTML = '<span class="text-2xl font-heading text-primary">DAO</span>';
+                  }}
+                />
+              </div>
+              <div>
+                <h2 className="text-xl font-heading text-foreground tracking-wide">DAO System</h2>
+                <p className="text-sm text-muted-foreground mt-2">
+                  Governance, profile, wallet & API key management
+                </p>
+              </div>
             </div>
-            <div>
-              <h2 className="text-xl font-heading text-foreground tracking-wide">DAO System</h2>
-              <p className="text-sm text-muted-foreground mt-2">
-                Governance, profile, wallet & API key management
-              </p>
+
+            {/* Official Links Grid */}
+            <div className="space-y-3">
+              <h3 className="text-[10px] font-heading uppercase tracking-widest text-muted-foreground/50 px-1">Official Links</h3>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                {DAO_LINKS.map((link) => (
+                  <a
+                    key={link.label}
+                    href={link.url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex items-center gap-3 p-4 rounded-xl border border-border/30 bg-card/50 hover:border-primary/30 hover:bg-card/70 transition-all group"
+                  >
+                    <div className="w-10 h-10 rounded-lg flex items-center justify-center bg-primary/10 border border-primary/20 shrink-0 overflow-hidden">
+                      {link.logo ? (
+                        <img
+                          src={link.logo}
+                          alt={link.label}
+                          className="w-7 h-7 object-contain"
+                          onError={(e) => {
+                            (e.target as HTMLImageElement).style.display = 'none';
+                          }}
+                        />
+                      ) : (
+                        <Globe className="w-5 h-5 text-primary/70" />
+                      )}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-1.5">
+                        <span className="text-xs font-heading text-foreground tracking-wider uppercase">{link.label}</span>
+                        <ExternalLink className="w-3 h-3 text-muted-foreground/30 group-hover:text-primary/60 transition-colors" />
+                      </div>
+                      <p className="text-[10px] text-muted-foreground/60 truncate">{link.desc}</p>
+                      <p className="text-[8px] text-muted-foreground/30 font-mono truncate mt-0.5">{link.url.replace('https://www.', '').replace('https://', '')}</p>
+                    </div>
+                  </a>
+                ))}
+              </div>
             </div>
+
+            {/* Feature tiles */}
             <div className="grid grid-cols-2 gap-3">
               {[
                 { icon: User, label: "Profile", desc: "Coming soon" },
