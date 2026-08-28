@@ -20,20 +20,20 @@ const DAO_LINKS = [
   },
   {
     label: "ADEX",
-    url: "https://www.alienflow.space/adex",
-    desc: "DEX & auto-trade engine",
+    url: "https://adex.alienflow.space",
+    desc: "Alien DEX & Play HUB",
     logo: "",
   },
   {
-    label: "ACE",
-    url: "https://www.alienflow.space/ace",
-    desc: "Autonomous Cognitive Engine",
+    label: "ACE DAPPs",
+    url: "https://ace.alienflow.space",
+    desc: "Autonomous Cognitive Engine | A CashFlow Energy",
     logo: "",
   },
   {
-    label: "ATRIP",
-    url: "https://www.alienflow.space/atrip",
-    desc: "ATRIP protocol",
+    label: "ATrip",
+    url: "https://atrip.alienflow.space",
+    desc: "Alien Travel Trip ",
     logo: "",
   },
   {
