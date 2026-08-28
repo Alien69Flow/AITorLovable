@@ -18,17 +18,17 @@ const DAO_LINKS = [
     desc: "GitBook documentation",
     logo: "",
   },
+   {
+    label: "ACE DAPPs",
+    url: "https://ace.alienflow.space",
+    desc: "Autonomous Cognitive Engine | A CashFlow Energy",
+    logo: "/ace.png",
+  },
   {
     label: "ADEX",
     url: "https://adex.alienflow.space",
     desc: "Alien DEX & Play HUB",
-    logo: "",
-  },
-  {
-    label: "ACE DAPPs",
-    url: "https://ace.alienflow.space",
-    desc: "Autonomous Cognitive Engine | A CashFlow Energy",
-    logo: "",
+    logo: "/adex.png",
   },
   {
     label: "ATrip",
