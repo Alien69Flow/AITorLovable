@@ -1,6 +1,19 @@
 import { useMemo } from "react";
 import { useRealTimeData } from "./useRealTimeData";
 import { useOsintIntel, type IntelEvent } from "./useOsintIntel";
+import { useRainViewer } from "./connectors/useRainViewer";
+import { useSurfaceWeather } from "./connectors/useSurfaceWeather";
+import { useEmscQuakes } from "./connectors/useEmscQuakes";
+import { useFirmsFires } from "./connectors/useFirmsFires";
+import { useAurora } from "./connectors/useAurora";
+import { useSubmarineCables } from "./connectors/useSubmarineCables";
+import { useBitcoinNodes } from "./connectors/useBitcoinNodes";
+import { useGdeltEvents } from "./connectors/useGdeltEvents";
+import { useAdsbTraffic } from "./connectors/useAdsbTraffic";
+import { useCelestrakSatellites } from "./connectors/useCelestrakSatellites";
+import { toStatus, type LayerStatus } from "@/lib/connectors";
+import type { EnvLayerKey } from "@/lib/globe-layers";
+import type { Earthquake } from "./useEarthquakes";
 import type { UnifiedHotspotData } from "@/components/globe/GlobeScene";
 
 export interface TickerItem {
@@ -11,22 +24,102 @@ export interface TickerItem {
   severity?: "CRITICAL" | "HIGH" | "MEDIUM" | "LOW";
 }
 
+export type ConnectorKey =
+  | "rainRadar"
+  | "surfaceWeather"
+  | "quakesEmsc"
+  | "fires"
+  | "aurora"
+  | "satellites"
+  | "cables"
+  | "bitcoinNodes"
+  | "gdelt"
+  | "aviation"
+  | "osint";
+
+export type LayerStatusMap = Record<ConnectorKey, LayerStatus>;
+
 /**
  * Unified intelligence layer.
- * Single source of truth combining environmental telemetry (USGS/NOAA/NASA),
- * market data (CoinGecko) and OSINT events (Firecrawl).
+ * Single source of truth combining environmental telemetry (USGS/EMSC/NOAA/NASA),
+ * market data, infrastructure registries and OSINT feeds.
+ *
+ * Each connector owns its own loading/error state; a failing endpoint never
+ * blocks the rendering of the other active layers.
  */
-export function useUnifiedIntel() {
+export function useUnifiedIntel(activeLayers?: Set<EnvLayerKey>) {
+  const on = (k: EnvLayerKey) => (activeLayers ? activeLayers.has(k) : false);
+
   const realtime = useRealTimeData();
   const osint = useOsintIntel();
 
+  // --- 1. Weather & atmosphere -------------------------------------------
+  const rain = useRainViewer(on("precipitation"));
+  const surface = useSurfaceWeather(on("wind") || on("isobars"));
+
+  // --- 2. Seismic & emergencies ------------------------------------------
+  const emsc = useEmscQuakes(activeLayers ? on("earthquakes") : true);
+  const fires = useFirmsFires(on("wildfires"), "ESP");
+
+  // --- 3. Space & satellites ---------------------------------------------
+  const aurora = useAurora(on("solarActivity"));
+  const sats = useCelestrakSatellites(on("satellites"));
+
+  // --- 4. Infrastructure & blockchain ------------------------------------
+  const cables = useSubmarineCables(on("underseaCables"));
+  const btcNodes = useBitcoinNodes(on("economicCenters"));
+
+  // --- 5. OSINT & aviation -----------------------------------------------
+  const gdelt = useGdeltEvents(on("conflictZones") || on("internetOutages"));
+  const aviation = useAdsbTraffic(on("airTraffic"), 15_000);
+
+  /** USGS (global) merged with EMSC (Europe / Iberia), de-duplicated by proximity. */
+  const earthquakes = useMemo<Earthquake[]>(() => {
+    const merged = [...realtime.earthquakes];
+    emsc.data.forEach((q) => {
+      const dup = merged.some(
+        (m) =>
+          Math.abs(m.lat - q.lat) < 0.4 &&
+          Math.abs(m.lon - q.lon) < 0.4 &&
+          Math.abs(m.time - q.time) < 120_000,
+      );
+      if (!dup) merged.push(q);
+    });
+    return merged;
+  }, [realtime.earthquakes, emsc.data]);
+
+  const layerStatus = useMemo<LayerStatusMap>(
+    () => ({
+      rainRadar: toStatus(rain, rain.data.frames.length),
+      surfaceWeather: toStatus(surface, surface.data.length),
+      quakesEmsc: toStatus(emsc, emsc.data.length),
+      fires: toStatus(fires, fires.data.length),
+      aurora: toStatus(aurora, aurora.data.cells.length),
+      satellites: {
+        loading: sats.loading,
+        error: sats.error,
+        lastUpdate: null,
+        count: sats.positions.length,
+      },
+      cables: toStatus(cables, cables.data.length),
+      bitcoinNodes: toStatus(btcNodes, btcNodes.data.length),
+      gdelt: toStatus(gdelt, gdelt.data.length),
+      aviation: toStatus(aviation, aviation.data.length),
+      osint: {
+        loading: osint.isLoading,
+        error: osint.error,
+        lastUpdate: osint.lastUpdate,
+        count: osint.events.length,
+      },
+    }),
+    [rain, surface, emsc, fires, aurora, sats, cables, btcNodes, gdelt, aviation, osint],
+  );
+
   // Correlate OSINT critical events with crypto volatility (>5% 24h)
   const correlations = useMemo(() => {
-    const volatile = realtime.cryptoPrices.filter(
-      (p) => Math.abs(p.change24h ?? 0) > 5
-    );
+    const volatile = realtime.cryptoPrices.filter((p) => Math.abs(p.change24h ?? 0) > 5);
     const criticalIntel = osint.events.filter(
-      (e) => e.severity === "CRITICAL" || e.severity === "HIGH"
+      (e) => e.severity === "CRITICAL" || e.severity === "HIGH",
     );
     return criticalIntel.map((event) => ({
       event,
@@ -42,14 +135,14 @@ export function useUnifiedIntel() {
   const eventMarkers = useMemo<UnifiedHotspotData[]>(() => {
     const markers: UnifiedHotspotData[] = [];
 
-    realtime.earthquakes.slice(0, 50).forEach((q) => {
+    earthquakes.slice(0, 60).forEach((q) => {
       markers.push({
         lat: q.lat,
         lon: q.lon,
         intensity: Math.min(1, (q.magnitude || 4) / 9),
         color: q.magnitude >= 6 ? "#ff4444" : q.magnitude >= 5 ? "#ff8844" : "#ffff00",
         name: q.place || "Earthquake",
-        country: "USGS",
+        country: q.id.startsWith("emsc-") ? "EMSC" : "USGS",
         marketVolume: `M${(q.magnitude || 0).toFixed(1)}`,
         trend: `${q.depth}km`,
         topTokens: [],
@@ -92,7 +185,7 @@ export function useUnifiedIntel() {
     });
 
     return markers;
-  }, [realtime.earthquakes, realtime.nasaEvents, realtime.sightings]);
+  }, [earthquakes, realtime.nasaEvents, realtime.sightings]);
 
   // Unified ticker stream merging OSINT + environmental headlines
   const tickerItems = useMemo<TickerItem[]>(() => {
@@ -108,13 +201,23 @@ export function useUnifiedIntel() {
       });
     });
 
-    [...realtime.earthquakes].sort((a, b) => b.magnitude - a.magnitude).slice(0, 4).forEach((q) => {
+    [...earthquakes].sort((a, b) => b.magnitude - a.magnitude).slice(0, 4).forEach((q) => {
       items.push({
         tag: "[ALERT]",
         text: `M${q.magnitude.toFixed(1)} earthquake — ${q.place}`,
-        source: "Source: USGS",
+        source: q.id.startsWith("emsc-") ? "Source: EMSC" : "Source: USGS",
         time: new Date(q.time).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
         severity: q.magnitude >= 6 ? "CRITICAL" : q.magnitude >= 5 ? "HIGH" : "MEDIUM",
+      });
+    });
+
+    gdelt.data.slice(0, 4).forEach((g) => {
+      items.push({
+        tag: "[GDELT]",
+        text: g.title,
+        source: `Source: ${g.domain}`,
+        time: g.location || "",
+        severity: "LOW",
       });
     });
 
@@ -123,23 +226,39 @@ export function useUnifiedIntel() {
         tag: "[NASA]",
         text: `${evt.category}: ${evt.title}`,
         source: "Source: NASA EONET",
-        time: evt.date ? new Date(evt.date).toLocaleDateString([], { month: "short", day: "numeric" }) : "Active",
+        time: evt.date
+          ? new Date(evt.date).toLocaleDateString([], { month: "short", day: "numeric" })
+          : "Active",
         severity: "LOW",
       });
     });
 
     return items;
-  }, [osint.events, realtime.earthquakes, realtime.nasaEvents]);
+  }, [osint.events, earthquakes, realtime.nasaEvents, gdelt.data]);
 
-  // Unified events stream for feed panel
   const events: IntelEvent[] = useMemo(() => osint.events, [osint.events]);
 
   return {
     ...realtime,
+    earthquakes,
+    // Connector payloads
+    rainTileUrl: rain.tileUrl,
+    rainFrame: rain.latestFrame,
+    surfaceWeather: surface.data,
+    fires: fires.data,
+    auroraMesh: aurora.data,
+    satellites: sats.positions,
+    cables: cables.data,
+    bitcoinNodes: btcNodes.data,
+    gdeltEvents: gdelt.data,
+    aviation: aviation.data,
+    // OSINT
     osint: osint.events,
     osintLoading: osint.isLoading,
     osintError: osint.error,
     refreshOsint: osint.refresh,
+    // Derived
+    layerStatus,
     correlations,
     events,
     eventMarkers,
