@@ -155,8 +155,16 @@ export function GlobeDashboard() {
             earthquakes={earthquakes}
             nasaEvents={nasaEvents}
             sightings={sightings}
-            flights={flights}
+            flights={allFlights}
             ships={ships}
+            satellites={satellites}
+            rainTileUrl={rainTileUrl}
+            surfaceWeather={surfaceWeather}
+            fires={fires}
+            auroraCells={auroraMesh.cells}
+            cables={cables}
+            bitcoinNodes={bitcoinNodes}
+            gdeltEvents={gdeltEvents}
           />
         </div>
 
