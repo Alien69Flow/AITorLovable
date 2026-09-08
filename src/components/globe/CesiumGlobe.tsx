@@ -1006,7 +1006,219 @@ export function CesiumGlobe({
     });
   }, [outages]);
 
+  // RainViewer precipitation radar (imagery layer, swapped when a new frame lands)
+  useEffect(() => {
+    const viewer = viewerRef.current;
+    if (!viewer || viewer.isDestroyed()) return;
+    const active = (envLayers ?? new Set<EnvLayerKey>()).has("precipitation");
+
+    if (!active || !rainTileUrl) {
+      if (rainLayerRef.current) {
+        try { viewer.imageryLayers.remove(rainLayerRef.current, true); } catch { /* noop */ }
+        rainLayerRef.current = null;
+        rainUrlRef.current = null;
+      }
+      return;
+    }
+    if (rainUrlRef.current === rainTileUrl && rainLayerRef.current) return;
+
+    try {
+      const provider = new UrlTemplateImageryProvider({
+        url: rainTileUrl,
+        maximumLevel: 8,
+        minimumLevel: 0,
+        credit: "RainViewer",
+      });
+      const layer = viewer.imageryLayers.addImageryProvider(provider);
+      layer.alpha = 0.8;
+      if (rainLayerRef.current) {
+        try { viewer.imageryLayers.remove(rainLayerRef.current, true); } catch { /* noop */ }
+      }
+      rainLayerRef.current = layer;
+      rainUrlRef.current = rainTileUrl;
+    } catch (e) {
+      console.warn("[CesiumGlobe] RainViewer layer failed:", e);
+    }
+  }, [rainTileUrl, envLayers]);
+
+  // Connector-driven vector layers: aurora mesh, FIRMS fires, submarine cables,
+  // Bitcoin nodes, GDELT events and Open-Meteo surface vectors.
+  useEffect(() => {
+    const viewer = viewerRef.current;
+    if (!viewer || viewer.isDestroyed()) return;
+    const active = envLayers ?? new Set<EnvLayerKey>();
+
+    connectorEntityIdsRef.current.forEach((id) => {
+      const e = viewer.entities.getById(id);
+      if (e) viewer.entities.remove(e);
+    });
+    connectorEntityIdsRef.current = [];
+
+    const track = (id: string) => connectorEntityIdsRef.current.push(id);
+
+    // --- NOAA Ovation aurora mesh ---
+    if (active.has("solarActivity")) {
+      auroraCells.forEach((c, i) => {
+        const id = `aurora-cell-${i}`;
+        const a = Math.min(0.5, c.probability / 140);
+        viewer.entities.add({
+          id,
+          position: Cartesian3.fromDegrees(c.lon, c.lat, 120000),
+          point: {
+            pixelSize: 6 + c.probability / 18,
+            color: hexToColor(c.probability > 45 ? "#7B2FFF" : "#00FFCC", a),
+            disableDepthTestDistance: Number.POSITIVE_INFINITY,
+          },
+        });
+        track(id);
+      });
+    }
+
+    // --- NASA FIRMS thermal detections ---
+    if (active.has("wildfires")) {
+      fires.slice(0, 500).forEach((f) => {
+        const id = `firms-${f.id}`;
+        viewer.entities.add({
+          id,
+          position: Cartesian3.fromDegrees(f.lon, f.lat, 0),
+          point: {
+            pixelSize: 5,
+            color: hexToColor("#FB923C", 0.95),
+            outlineColor: hexToColor("#FFEDD5", 0.3),
+            outlineWidth: 2,
+            scaleByDistance: new NearFarScalar(1e6, 1.4, 1e8, 0.3),
+            disableDepthTestDistance: Number.POSITIVE_INFINITY,
+          },
+          properties: {
+            sightingData: JSON.stringify({
+              lat: f.lat, lon: f.lon, location: "Active fire",
+              description: `Brightness ${f.brightness} · confidence ${f.confidence}`,
+              type: "fire", severity: "high", source: "NASA FIRMS (VIIRS)",
+              category: "conflict", date_reported: "24h",
+            }),
+          } as any,
+        });
+        track(id);
+      });
+    }
+
+    // --- TeleGeography submarine cables ---
+    if (active.has("underseaCables")) {
+      cables.forEach((cable) => {
+        cable.paths.forEach((path, si) => {
+          if (path.length < 2) return;
+          const id = `tg-cable-${cable.id}-${si}`;
+          viewer.entities.add({
+            id,
+            polyline: {
+              positions: path.map(([lon, lat]) => Cartesian3.fromDegrees(lon, lat, 15000)),
+              width: 1.4,
+              material: new PolylineGlowMaterialProperty({
+                glowPower: 0.2,
+                color: Color.fromCssColorString(cable.color || "#0891b2").withAlpha(0.55),
+              }),
+            },
+            properties: { cableName: cable.name } as any,
+          });
+          track(id);
+        });
+      });
+    }
+
+    // --- Bitnodes Bitcoin nodes ---
+    if (active.has("economicCenters")) {
+      bitcoinNodes.forEach((n) => {
+        const id = `btc-node-${n.id}`;
+        viewer.entities.add({
+          id,
+          position: Cartesian3.fromDegrees(n.lon, n.lat, 0),
+          point: {
+            pixelSize: 3,
+            color: hexToColor("#F7931A", 0.85),
+            scaleByDistance: new NearFarScalar(1e6, 1.6, 1e8, 0.25),
+            disableDepthTestDistance: Number.POSITIVE_INFINITY,
+          },
+        });
+        track(id);
+      });
+    }
+
+    // --- GDELT geolocated news ---
+    if (active.has("conflictZones") || active.has("internetOutages")) {
+      gdeltEvents.slice(0, 100).forEach((g) => {
+        const id = `gdelt-${g.id}`;
+        viewer.entities.add({
+          id,
+          position: Cartesian3.fromDegrees(g.lon, g.lat, 0),
+          point: {
+            pixelSize: 5,
+            color: hexToColor("#38BDF8", 0.9),
+            outlineColor: hexToColor("#0EA5E9", 0.3),
+            outlineWidth: 3,
+            scaleByDistance: new NearFarScalar(1e6, 1.3, 1e8, 0.3),
+            disableDepthTestDistance: Number.POSITIVE_INFINITY,
+          },
+          properties: {
+            sightingData: JSON.stringify({
+              lat: g.lat, lon: g.lon, location: g.title.slice(0, 90),
+              description: g.url, type: "news", severity: "medium",
+              source: `GDELT · ${g.domain}`, category: "intel", date_reported: "24h",
+            }),
+          } as any,
+        });
+        track(id);
+      });
+    }
+
+    // --- Open-Meteo surface wind / pressure ---
+    if (active.has("wind") || active.has("isobars")) {
+      surfaceWeather.forEach((p) => {
+        const id = `surface-${p.id}`;
+        const rad = (p.windDirectionDeg * Math.PI) / 180;
+        const len = 2 + Math.min(6, p.windSpeedMs / 4);
+        const endLat = p.lat + Math.cos(rad) * len * -0.5;
+        const endLon = p.lon + Math.sin(rad) * len * -0.5;
+        viewer.entities.add({
+          id,
+          polyline: {
+            positions: [
+              Cartesian3.fromDegrees(p.lon, p.lat, 30000),
+              Cartesian3.fromDegrees(endLon, endLat, 30000),
+            ],
+            width: 2,
+            material: new PolylineGlowMaterialProperty({
+              glowPower: 0.3,
+              color: Color.fromCssColorString("#6EE7B7").withAlpha(0.8),
+            }),
+          },
+        });
+        track(id);
+        const labelId = `${id}-label`;
+        viewer.entities.add({
+          id: labelId,
+          position: Cartesian3.fromDegrees(p.lon, p.lat, 30000),
+          label: {
+            text: active.has("isobars")
+              ? `${Math.round(p.pressureHpa)} hPa`
+              : `${p.windSpeedMs.toFixed(0)} m/s`,
+            font: "9px monospace",
+            fillColor: hexToColor("#A5B4FC", 0.9),
+            outlineColor: Color.BLACK,
+            outlineWidth: 2,
+            style: 2,
+            verticalOrigin: VerticalOrigin.BOTTOM,
+            pixelOffset: new Cartesian2(0, -8),
+            scaleByDistance: new NearFarScalar(1e6, 0.9, 1e8, 0.2),
+            disableDepthTestDistance: Number.POSITIVE_INFINITY,
+          },
+        });
+        track(labelId);
+      });
+    }
+  }, [envLayers, auroraCells, fires, cables, bitcoinNodes, gdeltEvents, surfaceWeather]);
+
   return (
     <div ref={containerRef} className="w-full h-full" style={{ background: "#000000" }} />
   );
 }
+
