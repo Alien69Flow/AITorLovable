@@ -30,6 +30,13 @@ export function GlobeDashboard() {
   const [selectedHotspot, setSelectedHotspot] = useState<UnifiedHotspotData | null>(null);
   const [mobilePanel, setMobilePanel] = useState<MobilePanel>(null);
   const [paywallReason, setPaywallReason] = useState<string | null>(null);
+  const [visibleLayers, setVisibleLayers] = useState<Set<LayerKey>>(
+    new Set(["finance", "intel", "conflict", "geopolitical", "logistics", "cryptozoo", "convergence"])
+  );
+  const [envLayers, setEnvLayers] = useState<Set<EnvLayerKey>>(
+    new Set(DEFAULT_ACTIVE_LAYERS)
+  );
+
   const {
     earthquakes,
     nasaEvents,
@@ -38,21 +45,26 @@ export function GlobeDashboard() {
     counts,
     eventMarkers,
     events: osintEvents,
-  } = useUnifiedIntel();
+    rainTileUrl,
+    surfaceWeather,
+    fires,
+    auroraMesh,
+    satellites,
+    cables,
+    bitcoinNodes,
+    gdeltEvents,
+    aviation,
+  } = useUnifiedIntel(envLayers);
   const { sightings } = useUAPSightings();
   const { tier, hasAccess } = useTier();
-  
+
   // Air & Marine Traffic hooks
   const { flights, isLoading: airLoading, count: flightCount } = useAirTraffic();
   const { ships, isLoading: marineLoading, count: shipCount } = useMarineTraffic();
   const { outages } = useInternetOutages(true);
 
-  const [visibleLayers, setVisibleLayers] = useState<Set<LayerKey>>(
-    new Set(["finance", "intel", "conflict", "geopolitical", "logistics", "cryptozoo", "convergence"])
-  );
-  const [envLayers, setEnvLayers] = useState<Set<EnvLayerKey>>(
-    new Set(DEFAULT_ACTIVE_LAYERS)
-  );
+  // ADS-B.lol supplements OpenSky when the latter is rate-limited.
+  const allFlights = aviation.length > flights.length ? aviation : flights;
   const globeNavRef = useRef<((lat: number, lng: number, alt: number) => void) | null>(null);
 
   const toggleLayer = useCallback((key: LayerKey) => {
