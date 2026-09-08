@@ -131,17 +131,38 @@ interface CesiumGlobeProps {
   ships?: Ship[];
   satellites?: SatellitePosition[];
   outages?: OutageEvent[];
+  /** RainViewer radar tile template (null while unavailable). */
+  rainTileUrl?: string | null;
+  /** NOAA Ovation aurora mesh cells. */
+  auroraCells?: { lat: number; lon: number; probability: number }[];
+  /** NASA FIRMS active fire detections. */
+  fires?: { id: string; lat: number; lon: number; brightness: number; confidence: string }[];
+  /** TeleGeography submarine cables. */
+  cables?: { id: string; name: string; color: string; paths: [number, number][][] }[];
+  /** Bitnodes reachable Bitcoin nodes. */
+  bitcoinNodes?: { id: string; lat: number; lon: number; city: string; country: string }[];
+  /** GDELT geolocated news events. */
+  gdeltEvents?: { id: string; title: string; lat: number; lon: number; domain: string; url: string }[];
+  /** Open-Meteo surface wind / pressure vectors. */
+  surfaceWeather?: {
+    id: string; name: string; lat: number; lon: number;
+    pressureHpa: number; windSpeedMs: number; windDirectionDeg: number;
+  }[];
 }
 
 export function CesiumGlobe({
   onHotspotClick, sightings = [], visibleLayers, envLayers, flyTo, kpIndex = 0,
   earthquakes = [], nasaEvents = [], flights = [], ships = [],
   satellites = [], outages = [],
+  rainTileUrl = null, auroraCells = [], fires = [], cables = [],
+  bitcoinNodes = [], gdeltEvents = [], surfaceWeather = [],
 }: CesiumGlobeProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const viewerRef = useRef<CesiumViewer | null>(null);
   const owmLayersRef = useRef<Record<string, any>>({});
   const gibsLayersRef = useRef<Record<string, any>>({});
+  const rainLayerRef = useRef<any>(null);
+  const rainUrlRef = useRef<string | null>(null);
   const sightingEntityIdsRef = useRef<string[]>([]);
   const marketEntityIdsRef = useRef<string[]>([]);
   const arcEntityIdsRef = useRef<string[]>([]);
@@ -153,6 +174,7 @@ export function CesiumGlobe({
   const staticEntityIdsRef = useRef<string[]>([]);
   const satEntityIdsRef = useRef<string[]>([]);
   const outageEntityIdsRef = useRef<string[]>([]);
+  const connectorEntityIdsRef = useRef<string[]>([]);
 
   const handleHotspotClick = useCallback(
     (data: HotspotData | null) => { onHotspotClick?.(data); },
