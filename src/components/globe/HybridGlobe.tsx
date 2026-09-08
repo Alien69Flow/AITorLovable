@@ -26,6 +26,14 @@ export interface HybridGlobeProps {
   sightings?: UAPSighting[];
   flights?: Flight[];
   ships?: Ship[];
+  satellites?: { id: string; name: string; lat: number; lon: number; altKm: number }[];
+  rainTileUrl?: string | null;
+  surfaceWeather?: any[];
+  fires?: any[];
+  auroraCells?: { lat: number; lon: number; probability: number }[];
+  cables?: any[];
+  bitcoinNodes?: any[];
+  gdeltEvents?: any[];
 }
 
 function GlobeFallback() {
@@ -49,10 +57,21 @@ export function HybridGlobe({
   sightings = [],
   flights = [],
   ships = [],
+  satellites: satellitesProp,
+  rainTileUrl = null,
+  surfaceWeather = [],
+  fires = [],
+  auroraCells = [],
+  cables = [],
+  bitcoinNodes = [],
+  gdeltEvents = [],
 }: HybridGlobeProps) {
   const isMobile = useIsMobile();
   const [flyTo, setFlyTo] = useState<{ lat: number; lon: number; alt: number } | null>(null);
-  const satellites = useSatellites(!isMobile && layers.has("satellites"));
+  const fallbackSatellites = useSatellites(
+    !isMobile && layers.has("satellites") && !satellitesProp,
+  );
+  const satellites = satellitesProp?.length ? satellitesProp : fallbackSatellites;
   const { outages } = useInternetOutages(layers.has("internetOutages"));
   const onReadyRef = useRef(onReady);
   onReadyRef.current = onReady;
@@ -82,6 +101,13 @@ export function HybridGlobe({
           ships={layers.has("marineTraffic") ? ships : []}
           satellites={layers.has("satellites") ? satellites : []}
           outages={layers.has("internetOutages") ? outages : []}
+          rainTileUrl={rainTileUrl}
+          surfaceWeather={surfaceWeather}
+          fires={fires}
+          auroraCells={auroraCells}
+          cables={cables}
+          bitcoinNodes={bitcoinNodes}
+          gdeltEvents={gdeltEvents}
         />
       </Suspense>
     </div>
